@@ -1,0 +1,449 @@
+﻿@using System.Security.Claims
+<style>
+    .selectize-dropdown {
+        z-index: 10000 !important;
+    }
+
+    .selectize-input {
+        background: #374151 !important;
+        border: 1px solid #4b5563 !important;
+        color: #ffffff !important;
+    }
+
+        .selectize-input.focus {
+            border-color: #3b82f6 !important;
+        }
+
+        .selectize-input input {
+            color: #ffffff !important;
+        }
+
+    /* Estados badges - Paleta más formal y neutral */
+    .badge-estado {
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+
+    /* Estados Normales (1-5) */
+    .estado-1 {
+        background: #1e40af; /* Azul oscuro - Creado */
+        color: white;
+    }
+
+    .estado-2 {
+        background: #b45309; /* Naranja oscuro - En proceso */
+        color: white;
+    }
+
+    .estado-3 {
+        background: #047857; /* Verde oscuro - Aprobado */
+        color: white;
+    }
+
+    .estado-4 {
+        background: #6b7280; /* Gris - Enviado */
+        color: white;
+    }
+
+    .estado-5 {
+        background: #991b1b; /* Rojo oscuro - Cancelado */
+        color: white;
+    }
+
+    /* Estados Importación (6-9) */
+    .estado-6 {
+        background: #1e3a8a; /* Azul marino - Importación iniciada */
+        color: white;
+    }
+
+    .estado-7 {
+        background: #92400e; /* Marrón - En tránsito */
+        color: white;
+    }
+
+    .estado-8 {
+        background: #065f46; /* Verde bosque - En aduana */
+        color: white;
+    }
+
+    .estado-9 {
+        background: #374151; /* Gris oscuro - Recibido */
+        color: white;
+    }
+</style>
+<div class="space-y-6">
+    <!-- Header -->
+    <div class="bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-3 bg-red-600 rounded-lg">
+                    <i class="fas fa-file-invoice text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Órdenes de Compra</h1>
+                    <p class="text-gray-400 text-sm">Gestión y seguimiento de órdenes de compra</p>
+                </div>
+            </div>
+
+            <!-- Botón Nueva Orden -->
+            <button id="btnNuevaOrden"
+                    type="button"
+                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:z-10 focus:ring-4 focus:ring-red-300 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                <i class="fas fa-plus mr-2"></i>
+                Nueva Orden
+            </button>
+        </div>
+    </div>
+
+    <!-- Grid de Órdenes -->
+    <div class="container-fluid mt-5" style="padding-top:0">
+        <div id="myGridOrdenes" class="ag-theme-quartz-dark" style="height:65vh"></div>
+    </div>
+</div>
+
+<!-- Modal Nueva/Editar Orden -->
+<div id="modalOrden" tabindex="-1" aria-hidden="true"
+     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-7xl max-h-full">
+        <div class="relative bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
+            <!-- Modal header -->
+            <div class="flex items-center justify-between p-3 border-b border-gray-600">
+                <h3 id="titleModalOrden" class="text-base font-semibold text-white">
+                    <i class="fas fa-edit mr-2 text-red-400"></i>ORDEN DE COMPRA
+                </h3>
+                <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-600 hover:text-white rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center transition-colors" onclick="cerrarModalOrden()">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Modal body -->
+            <div class="p-3 md:p-4 max-h-[calc(100vh-150px)] overflow-y-auto">
+                <input type="hidden" id="id_orden">
+
+                <!-- Información Principal -->
+                <div class="grid gap-2 mb-3 grid-cols-1 md:grid-cols-4">
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-calendar mr-1 text-blue-400 text-xs"></i>FECHA:
+                        </label>
+                        <input type="date" id="fecha_orden"
+                               class="bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-truck mr-1 text-blue-400 text-xs"></i>PROVEEDOR:
+                        </label>
+                        <select id="select_proveedor"
+                                class="bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5">
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-phone mr-1 text-blue-400 text-xs"></i>Telef./Fax:
+                        </label>
+                        <input type="text" id="tel_prov"
+                               class="uppercase bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5"
+                               placeholder="N° Celular">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-user mr-1 text-blue-400 text-xs"></i>NOMBRE CONTACTO:
+                        </label>
+                        <input type="text" id="contacto_nom"
+                               class="uppercase bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5"
+                               placeholder="Nombre">
+                    </div>
+                </div>
+
+                <div class="grid gap-2 mb-3 grid-cols-1 md:grid-cols-4">
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-user-check mr-1 text-blue-400 text-xs"></i>SOLICITANTE:
+                        </label>
+                        <input type="text" id="solicitante_orden" readonly
+                               class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-1.5"
+                               value="@User.Identity.Name">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-id-badge mr-1 text-blue-400 text-xs"></i>ROL:
+                        </label>
+                        <input type="text" id="rol_orden" readonly
+                               class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-1.5"
+                               value="@User.FindFirst(ClaimTypes.Role)?.Value">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-hashtag mr-1 text-blue-400 text-xs"></i>REFERENCIA:
+                        </label>
+                        <input type="text" id="referencia_orden" readonly
+                               class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-1.5"
+                               placeholder="Automático...">
+                        <input type="hidden" id="id_solicitud_actual">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white flex items-center">
+                            <i class="fas fa-globe mr-1 text-blue-400 text-xs"></i>TIPO DE ORDEN:
+                        </label>
+                        <label class="relative inline-flex items-center cursor-pointer mt-1">
+                            <input type="checkbox" id="es_importacion" class="sr-only peer">
+                            <div class="w-9 h-5 bg-gray-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                            <span class="ml-2 text-xs font-medium text-gray-300">
+                                <span id="tipo_orden_texto">Nacional</span>
+                            </span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="grid gap-2 mb-3 grid-cols-1 md:grid-cols-2">
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-comment mr-1 text-blue-400 text-xs"></i>OBSERVACIÓN:
+                        </label>
+                        <input type="text" id="observacion"
+                               class="uppercase bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5"
+                               placeholder="Añadir observación...">
+                    </div>
+                    <div>
+                        <label class="block mb-1 text-xs font-medium text-white">
+                            <i class="fas fa-money-bill-wave mr-1 text-blue-400 text-xs"></i>FORMA DE PAGO:
+                        </label>
+                        <div class="flex items-center mt-1 space-x-3">
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="forma_pago" value="Efectivo"
+                                       class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600">
+                                <span class="ml-1 text-xs text-gray-300">Efectivo</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="forma_pago" value="Transferencia"
+                                       class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600">
+                                <span class="ml-1 text-xs text-gray-300">Transferencia</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="forma_pago" value="Cheque"
+                                       class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600">
+                                <span class="ml-1 text-xs text-gray-300">Cheque</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Información de Entrega y Pago -->
+                <div class="grid gap-2 mb-3 grid-cols-1 md:grid-cols-2">
+                    <!-- Entrega -->
+                    <div class="bg-gray-900 rounded-lg p-3 border border-blue-500">
+                        <h3 class="text-sm font-semibold text-blue-400 mb-2 flex items-center">
+                            <i class="fas fa-shipping-fast mr-1 text-xs"></i>INFORMACIÓN DE ENTREGA
+                        </h3>
+                        <div class="space-y-2">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Medio de Transporte:</label>
+                                <input type="text" id="medio_transporte"
+                                       class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5"
+                                       placeholder="Ej. Terrestre">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Responsable de Recepción:</label>
+                                <input type="text" id="responsable_recepcion"
+                                       class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Fecha de Entrega:</label>
+                                <input type="date" id="fecha_entrega_info"
+                                       class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Lugar de Entrega:</label>
+                                <input type="text" id="lugar_entrega"
+                                       class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5"
+                                       placeholder="Ej. Almacén Central">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pago -->
+                    <div class="bg-gray-900 rounded-lg p-3 border border-blue-500">
+                        <h3 class="text-sm font-semibold text-blue-400 mb-2 flex items-center">
+                            <i class="fas fa-credit-card mr-1 text-xs"></i>INFORMACIÓN DE PAGO
+                        </h3>
+                        <div class="space-y-2">
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Fecha Anticipo:</label>
+                                    <input type="date" id="fecha_anticipo"
+                                           class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Monto Anticipo:</label>
+                                    <input type="number" id="monto_anticipo" step="0.01"
+                                           class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5"
+                                           placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Fecha Pago Final:</label>
+                                    <input type="date" id="fecha_pago_final"
+                                           class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Monto Pago Final:</label>
+                                    <input type="number" id="monto_pago_final" step="0.01"
+                                           class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5"
+                                           placeholder="0.00">
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">Banco:</label>
+                                    <input type="text" id="banco_nombre"
+                                           class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-gray-400 mb-1">N° Cuenta:</label>
+                                    <input type="text" id="cuenta_numero"
+                                           class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Nombre Cuenta Bancaria:</label>
+                                <input type="text" id="nombre_cuenta"
+                                       class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Código SWIFT:</label>
+                                <input type="text" id="codigo_swift"
+                                       class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">INCOTERM:</label>
+                                <input type="text" id="incoterm"
+                                       class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Facturación -->
+                <div class="bg-green-900 rounded-lg p-3 border border-green-500 mb-3">
+                    <h3 class="text-sm font-semibold text-green-400 mb-2 flex items-center">
+                        <i class="fas fa-file-invoice-dollar mr-1 text-xs"></i>FACTURACIÓN
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">Razón Social:</label>
+                            <input type="text" id="razon_social_factura"
+                                   class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-1">NIT:</label>
+                            <input type="text" id="nit_factura"
+                                   class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tabla de Productos -->
+                <div class="mb-3">
+                    <h3 class="text-sm font-semibold text-red-400 mb-2 flex items-center">
+                        <i class="fas fa-boxes mr-1 text-xs"></i>DETALLE DE PRODUCTOS
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left">
+                            <thead class="text-xs uppercase bg-red-700 text-white">
+                                <tr>
+                                    <th class="px-2 py-2 text-center" style="width: 40px;">SEL.</th>
+                                    <th class="px-2 py-2">CÓDIGO</th>
+                                    <th class="px-2 py-2">NRO.</th>
+                                    <th class="px-2 py-2">DESCRIPCIÓN</th>
+                                    <th class="px-2 py-2">F. ENTREGA</th>
+                                    <th class="px-2 py-2">CARACTERÍSTICAS</th>
+                                    <th class="px-2 py-2">UNIDAD</th>
+                                    <th class="px-2 py-2">CANTIDAD</th>
+                                    <th class="px-2 py-2">ULT. PRECIO</th>
+                                    <th class="px-2 py-2">ULT. COMPRA</th>
+                                    <th class="px-2 py-2">PRECIO</th>
+                                    <th class="px-2 py-2">TOTAL Bs</th>
+                                </tr>
+                            </thead>
+                            <tbody id="body_detalle" class="bg-gray-700">
+                                <tr>
+                                    <td colspan="10" class="text-center py-3 text-gray-400 text-xs">
+                                        Seleccione un proveedor para cargar datos...
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="flex justify-end gap-2 pt-3 border-t border-gray-600">
+                    <button type="button" onclick="cerrarModalOrden()"
+                            class="py-1.5 px-4 text-xs font-medium text-gray-300 bg-gray-700 rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition-colors">
+                        <i class="fas fa-times mr-1"></i>Cancelar
+                    </button>
+                    <button type="button" onclick="guardarOrden()"
+                            class="py-1.5 px-4 text-xs font-medium text-white bg-blue-700 rounded-lg hover:bg-blue-800 transition-colors">
+                        <i class="fas fa-save mr-1"></i>Guardar Orden
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Vista Previa con Cambio de Estado -->
+<div id="modalEstadoPDF" tabindex="-1" aria-hidden="true"
+     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-7xl max-h-full">
+        <div class="relative bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
+            <div class="flex items-center justify-between p-4 border-b border-gray-600">
+                <h3 class="text-lg font-semibold text-white">
+                    <i class="fas fa-file-pdf mr-2 text-blue-400"></i>ORDEN DE COMPRA #<span id="numero_orden_modal"></span>
+                </h3>
+                <button type="button" onclick="cerrarModalEstadoPDF()"
+                        class="text-gray-400 bg-transparent hover:bg-gray-600 hover:text-white rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                    </svg>
+                </button>
+            </div>
+
+            <!-- Estados con info de solicitud en la misma fila -->
+            <div class="p-4 bg-gray-900 border-b border-gray-600">
+                <div class="flex items-center justify-between mb-3">
+                    <h4 class="text-sm font-semibold text-white">CAMBIAR ESTADO:</h4>
+                    <div id="info_solicitud_vinculada" class="text-right">
+                        <!-- Se llenará dinámicamente -->
+                    </div>
+                </div>
+                <div id="contenedor_estados" class="flex flex-wrap gap-2">
+                    <!-- Los estados se cargarán dinámicamente -->
+                </div>
+            </div>
+
+            <!-- PDF -->
+            <div class="p-0 bg-gray-900">
+                <iframe id="iframePDFEstado" width="100%" height="600px" style="border: none;"></iframe>
+            </div>
+
+            <div class="flex justify-end gap-3 p-4 border-t border-gray-600">
+                <button type="button" onclick="descargarPdfOrden(document.getElementById('id_orden_estado').value)"
+                        class="py-2.5 px-5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors">
+                    <i class="fas fa-file-download mr-2"></i>Descargar PDF
+                </button>
+            </div>
+            <input type="hidden" id="id_orden_estado">
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/ag_grid/ag-grid.min.js"></script>
+<script src="~/js/pages/ordenGerencia.js"></script>

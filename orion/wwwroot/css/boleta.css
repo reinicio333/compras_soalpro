@@ -1,0 +1,28 @@
+﻿
+.boleta h5,
+.boleta-titulo h5,
+.boleta-informacion h5 {
+    margin: 0; /* Elimina el margen externo */
+    padding: 0; /* Elimina el relleno interno */
+    line-height: 1.2; /* Ajusta el espaciado entre líneas */
+}
+
+.boleta-body table th,
+.boleta-body table td {
+    padding: 0.3rem; /* Reduce el padding de las celdas de la tabla */
+}
+
+.boleta-firmas h5 {
+    margin: 0; /* Reduce el espacio entre las etiquetas en la sección de firmas */
+    padding: 0;
+}
+
+.boleta .row > [class^="col"] h5 {
+    margin-bottom: 0.2rem; /* Espaciado mínimo entre elementos dentro de columnas */
+}
+
+.boleta-titulo-hora,
+.boleta-titulo,
+.boleta-informacion {
+    margin-bottom: 0.5rem; /* Espaciado vertical reducido entre secciones */
+}

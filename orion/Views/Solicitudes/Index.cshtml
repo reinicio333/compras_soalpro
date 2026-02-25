@@ -1,0 +1,232 @@
+﻿@using System.Security.Claims
+<style>
+    /* Fix z-index para selectize en modal */
+    .selectize-dropdown {
+        z-index: 10000 !important;
+    }
+    
+    .selectize-input {
+        background: #374151 !important;
+        border: 1px solid #4b5563 !important;
+        color: #ffffff !important;
+    }
+    
+    .selectize-input.focus {
+        border-color: #3b82f6 !important;
+    }
+    
+    .selectize-input input {
+        color: #ffffff !important;
+    }
+    
+    .selectize-dropdown .option {
+        background: #ffffff;
+    }
+    
+    .selectize-dropdown .option.active {
+        background: #f3f4f6;
+    }
+</style>
+<div class="space-y-6">
+    <!-- Header con título -->
+    <div class="bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-3 bg-blue-600 rounded-lg">
+                    <i class="fas fa-file-invoice text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Solicitudes de Compra</h1>
+                    <p class="text-gray-400 text-sm">Gestión de solicitudes de bienes y servicios</p>
+                </div>
+            </div>
+
+            <!-- Botón Nueva Solicitud -->
+            <button id="btnNuevaSolicitud"
+                    type="button"
+                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-lg hover:bg-blue-700 focus:z-10 focus:ring-4 focus:ring-blue-300 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                <i class="fas fa-plus mr-2"></i>
+                Nueva Solicitud
+            </button>
+        </div>
+    </div>
+
+    <!-- Grid de Solicitudes -->
+    <div class="container-fluid mt-5" style="padding-top:0">
+        <div id="myGridSolicitudes" class="ag-theme-quartz-dark" style="height:65vh"></div>
+    </div>
+</div>
+
+<!-- Modal Nueva Solicitud -->
+<div id="modalSolicitud" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-8xl max-h-full">
+        <div class="relative bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
+            <!-- Modal header -->
+            <div class="flex items-center justify-between p-4 md:p-5 border-b border-gray-600 rounded-t">
+                <h3 id="titleModalSolicitud" class="text-lg font-semibold text-white">
+                    SOLICITUD DE COMPRA (BIENES O SERVICIOS)
+                </h3>
+                <button type="button" class="text-gray-400 bg-transparent hover:bg-gray-600 hover:text-white rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center transition-colors" onclick="cerrarModal()">
+                    <svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                    </svg>
+                    <span class="sr-only">Cerrar modal</span>
+                </button>
+            </div>
+
+            <!-- Modal body -->
+            <form id="formularioSolicitud" class="p-4 md:p-5">
+                <input type="hidden" id="id" name="id">
+
+                <!-- CABECERA -->
+                <div class="mb-6 pb-4 border-b border-gray-600">
+                    <h4 class="text-md font-semibold text-blue-400 mb-4">
+                        <i class="fas fa-info-circle mr-2"></i>Información General
+                    </h4>
+
+                    <div class="grid gap-4 mb-4 grid-cols-1 md:grid-cols-2">
+                        <!-- Fecha -->
+                        <div>
+                            <label for="fecha" class="block mb-2 text-sm font-medium text-white">
+                                <i class="fas fa-calendar mr-2 text-blue-400"></i>Fecha *
+                            </label>
+                            <input type="date" name="fecha" id="fecha"
+                                   class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 transition-colors"
+                                   readonly required>
+                        </div>
+
+                        <!-- Fecha Requerimiento -->
+                        <div>
+                            <label for="frequerimiento" class="block mb-2 text-sm font-medium text-white">
+                                <i class="fas fa-calendar-check mr-2 text-blue-400"></i>Fecha Requerimiento
+                            </label>
+                            <input type="date" name="frequerimiento" id="frequerimiento"
+                                   class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 transition-colors"
+                                   required>
+                        </div>
+
+                        <!-- Referencia -->
+                        <div>
+                            <label for="referencia" class="block mb-2 text-sm font-medium text-white">
+                                <i class="fas fa-hashtag mr-2 text-blue-400"></i>Referencia
+                            </label>
+                            <input type="text" name="referencia" id="referencia" 
+                                   class="uppercase bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 transition-colors"
+                                   placeholder="Ingrese referencia">
+                        </div>
+
+                        <!-- Solicitante -->
+                        <div>
+                            <label for="solicitante" class="block mb-2 text-sm font-medium text-white">
+                                <i class="fas fa-user mr-2 text-blue-400"></i>Solicitante *
+                            </label>
+                            <input type="text" name="solicitante" id="solicitante"
+                                   class="uppercase bg-gray-600 border border-gray-500 text-gray-300 text-sm rounded-lg block w-full p-2.5 cursor-not-allowed"
+                                   value="@User.Identity.Name" readonly required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DETALLE DE PRODUCTOS -->
+                <div class="mb-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h4 class="text-md font-semibold text-blue-400">
+                            <i class="fas fa-boxes mr-2"></i>Detalle de Productos
+                        </h4>
+                        <button type="button" id="btnAgregarProducto"
+                                class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:ring-4 focus:ring-green-300 transition-all">
+                            <i class="fas fa-plus mr-2"></i>Agregar Producto
+                        </button>
+                        <button type="button" id="btnAgregarProductoManual"
+                                class="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 focus:ring-4 focus:ring-purple-300 transition-all">
+                            <i class="fas fa-pencil-alt mr-2"></i>Agregar Manual
+                        </button>
+                    </div>
+
+                    <!-- Contenedor de productos -->
+                    <div id="productosContainer" class="space-y-3">
+                        <!-- Encabezados -->
+                        <div class="bg-gray-700 rounded-lg p-3 border border-gray-600">
+                            <div class="grid grid-cols-12 gap-2 items-center">
+                                <div class="col-span-1 text-center">
+                                    <span class="text-[10px] font-semibold text-gray-400">#</span>
+                                </div>
+                                <div class="col-span-2">
+                                    <span class="text-[10px] font-semibold text-gray-300">Código/Descripción *</span>
+                                </div>
+                                <div class="col-span-2">
+                                    <span class="text-[10px] font-semibold text-gray-300">Proveedor *</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Características *</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Req. Días *</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Ult. Precio</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Ult. Compra</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Unidad *</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Cantidad *</span>
+                                </div>
+                                <div class="col-span-1"></div>
+                            </div>
+                        </div>
+
+                        <!-- Los productos se agregarán dinámicamente aquí -->
+                        <div id="productosLista" class="space-y-2 max-h-80 overflow-y-auto pr-2"></div>
+                    </div>
+                </div>
+
+                <!-- Botones del modal -->
+                <div class="flex justify-end gap-3 pt-4 border-t border-gray-600">
+                    <button type="button" onclick="cerrarModal()"
+                            class="py-2.5 px-5 text-sm font-medium text-gray-300 focus:outline-none bg-gray-700 rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white focus:z-10 focus:ring-4 focus:ring-gray-700 transition-colors">
+                        <i class="fas fa-times mr-2"></i>Cancelar
+                    </button>
+                    <button type="submit"
+                            class="text-white inline-flex items-center bg-blue-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center transition-colors">
+                        <i class="fas fa-save mr-2"></i>Guardar Solicitud
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Modal Vista Previa Solicitud -->
+<div id="modalPreviewSolicitud" tabindex="-1" aria-hidden="true"
+     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
+    <div class="relative p-4 w-full max-w-7xl max-h-full">
+        <div class="relative bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
+            <div class="flex items-center justify-between p-4 border-b border-gray-600">
+                <h3 class="text-lg font-semibold text-white">
+                    <i class="fas fa-file-pdf mr-2 text-red-400"></i>VISTA PREVIA - SOLICITUD DE COMPRA
+                </h3>
+                <button type="button" onclick="cerrarModalPreviewSolicitud()"
+                        class="text-gray-400 bg-transparent hover:bg-gray-600 hover:text-white rounded-lg text-sm w-8 h-8 inline-flex justify-center items-center transition-colors">
+                    <svg class="w-3 h-3" fill="none" viewBox="0 0 14 14">
+                        <path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6" />
+                    </svg>
+                </button>
+            </div>
+            <div class="p-0 bg-gray-900">
+                <iframe id="iframePDFSolicitud" width="100%" height="650px" style="border: none;"></iframe>
+            </div>
+            <div class="flex justify-end gap-3 p-4 border-t border-gray-600">
+                <button type="button" onclick="cerrarModalPreviewSolicitud()"
+                        class="py-2.5 px-5 text-sm font-medium text-gray-300 bg-gray-700 rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white transition-colors">
+                    <i class="fas fa-times mr-2"></i>Cerrar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/ag_grid/ag-grid.min.js"></script>
+<script src="~/js/pages/solicitudes.js"></script>

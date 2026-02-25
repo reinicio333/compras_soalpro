@@ -1,0 +1,963 @@
+﻿// Variables Globales
+let gridApi;
+let proveedoresDisponibles = [];
+let estadosDisponibles = [];
+let ordenEditando = null;
+
+// Configuración del Grid
+const gridOptions = {
+    columnDefs: [
+        {
+            headerName: "ID",
+            field: "id",
+            maxWidth: 100,
+            sort: 'desc'
+        },
+        {
+            headerName: "Fecha",
+            field: "fecha",
+            valueFormatter: params => {
+                if (params.value) {
+                    const fecha = new Date(params.value);
+                    return fecha.toLocaleDateString('es-ES');
+                }
+                return '';
+            },
+            maxWidth: 150,
+        },
+        {
+            headerName: "Referencia",
+            field: "referencia"
+        },
+        {
+            headerName: "Solicitante",
+            field: "solicitante"
+        },
+        {
+            headerName: "Tipo",
+            field: "esImportacion",
+            width: 120,
+            cellRenderer: params => {
+                return params.value
+                    ? '<span class="px-2 py-1 bg-gray-600 text-white rounded text-xs">IMPORTACION</span>'
+                    : '<span class="px-2 py-1 bg-gray-500 text-white rounded text-xs">NACIONAL</span>';
+            }
+        },
+        {
+            headerName: "Estado",
+            field: "estado",
+            cellRenderer: params => {
+                const estado = params.value || 'Sin Estado';
+                const idEstado = params.data.idEstado || 1;
+                return `<span class="badge-estado estado-${idEstado}">${estado}</span>`;
+            }
+        },
+        {
+            headerName: "Acciones",
+            field: "acciones",
+            minWidth: 310,
+            cellRenderer: params => {
+                const idEstado = params.data.idEstado || 1;
+                const esAprobadoOSuperior = idEstado >= 3;
+
+                return `
+        <button onclick="verEstadoOrden(${params.data.id})" 
+                class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                title="Ver/Cambiar Estado">
+            <i class="fas fa-tasks text-sm"></i>
+        </button>
+        <button onclick="vistaPreviaOrden(${params.data.id})" 
+                class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                title="Vista Previa">
+            <i class="fas fa-eye text-sm"></i>
+        </button>
+        <button onclick="descargarPdfOrden(${params.data.id})" 
+                class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                title="Descargar PDF">
+            <i class="fas fa-file-download text-sm"></i>
+        </button>
+        ${esAprobadoOSuperior ? '' : `
+    <button onclick="editarOrden(${params.data.id})" 
+            class="px-3 py-1 text-yellow-600 hover:bg-yellow-700 hover:text-white rounded-lg transition-all" 
+            title="Editar">
+        <i class="fas fa-edit text-sm"></i>
+    </button>
+    <button onclick="eliminarOrden(${params.data.id})" 
+            class="px-3 py-1 text-red-600 hover:bg-red-700 hover:text-white rounded-lg transition-all" 
+            title="Eliminar">
+        <i class="fas fa-trash text-sm"></i>
+    </button>
+`}
+    `;
+            }
+        }
+    ],
+    defaultColDef: {
+        flex: 1,
+        filter: true,
+        sortable: true,
+        resizable: true,
+        minWidth: 100
+    },
+    pagination: true,
+    paginationPageSize: 10,
+    paginationPageSizeSelector: [10, 20, 50, 100],
+    getRowId: params => String(params.data.id),
+    localeText: {
+        page: "Página",
+        more: "Más",
+        to: "a",
+        of: "de",
+        next: "Siguiente",
+        last: "Última",
+        first: "Primera",
+        previous: "Anterior",
+        loadingOoo: "Cargando...",
+        noRowsToShow: "Sin órdenes para mostrar",
+    },
+    onGridReady: () => {
+        cargarOrdenes();
+    }
+};
+
+document.addEventListener('DOMContentLoaded', function () {
+    const gridDiv = document.getElementById('myGridOrdenes');
+    gridApi = agGrid.createGrid(gridDiv, gridOptions);
+
+    cargarProveedores();
+    cargarEstados();
+
+    document.getElementById('es_importacion').addEventListener('change', function () {
+        const texto = document.getElementById('tipo_orden_texto');
+        texto.textContent = this.checked ? 'Importación' : 'Nacional';
+    });
+
+    document.getElementById('select_proveedor').addEventListener('change', function () {
+        obtenerReferenciaPorProveedor(this.value);
+    });
+
+    document.getElementById('btnNuevaOrden').addEventListener('click', abrirModalNuevaOrden);
+});
+
+
+function cargarOrdenes() {
+    fetch('/Orden/ListarOrdenes')
+        .then(resp => resp.json())
+        .then(data => {
+            if (Array.isArray(data)) {
+                gridApi.setGridOption('rowData', data);
+            } else if (data.tipo === 'error') {
+                mostrarAlerta(data.mensaje, 'error');
+            }
+        })
+        .catch(err => {
+            console.error("Error al cargar órdenes:", err);
+            mostrarAlerta('Error al cargar órdenes', 'error');
+        });
+}
+
+async function cargarProveedores() {
+    try {
+        const response = await fetch('/Orden/GetProveedores');
+        const data = await response.json();
+
+        if (data && Array.isArray(data)) {
+            proveedoresDisponibles = data;
+            const select = document.getElementById('select_proveedor');
+            select.innerHTML = '<option value="">Seleccione...</option>';
+
+            data.forEach(proveedor => {
+                const option = document.createElement('option');
+                option.value = proveedor;
+                option.textContent = proveedor;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar proveedores:', error);
+    }
+}
+
+async function cargarEstados() {
+    try {
+        const response = await fetch('/Orden/GetEstados');
+        const data = await response.json();
+
+        if (data && Array.isArray(data)) {
+            estadosDisponibles = data;
+        }
+    } catch (error) {
+        console.error('Error al cargar estados:', error);
+    }
+}
+
+function abrirModalNuevaOrden() {
+    ordenEditando = null;
+    document.getElementById('titleModalOrden').innerHTML = '<i class="fas fa-plus mr-2 text-red-400"></i>NUEVA ORDEN DE COMPRA';
+    document.getElementById('id_orden').value = '';
+
+    limpiarFormulario();
+
+    const hoy = new Date();
+    const fechaLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+    document.getElementById('fecha_orden').value = fechaLocal;
+
+    const modal = new Modal(document.getElementById('modalOrden'));
+    modal.show();
+}
+
+async function obtenerReferenciaPorProveedor(proveedor) {
+    const inputReferencia = document.getElementById('referencia_orden');
+    const inputId = document.getElementById('id_solicitud_actual');
+    const inputTelefono = document.getElementById('tel_prov');
+    const inputContacto = document.getElementById('contacto_nom');
+
+    if (!proveedor) {
+        inputReferencia.value = '';
+        inputId.value = '';
+        inputTelefono.value = '';
+        inputContacto.value = '';
+        document.getElementById('banco_nombre').value = '';
+        document.getElementById('cuenta_numero').value = '';
+        document.getElementById('nombre_cuenta').value = '';
+        document.getElementById('body_detalle').innerHTML = `
+            <tr>
+                <td colspan="10" class="text-center py-4 text-gray-400">
+                    Seleccione un proveedor para cargar datos...
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    try {
+        const response = await fetch(`/Orden/GetReferenciaPorProveedor?proveedor=${encodeURIComponent(proveedor)}`);
+        const data = await response.json();
+
+        if (data) {
+            inputReferencia.value = data.referencia || 'Sin referencia';
+            inputId.value = data.id;
+            inputTelefono.value = data.telefono || '';
+            inputContacto.value = data.contacto || '';
+            document.getElementById('banco_nombre').value = data.banco || '';
+            document.getElementById('cuenta_numero').value = data.cuenta || '';
+            document.getElementById('nombre_cuenta').value = data.nombreCuenta || '';
+
+            if (data.id > 0) {
+                await cargarDetallesPorProveedor(proveedor);
+            }
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        inputReferencia.value = 'Error al cargar';
+        inputTelefono.value = '';
+        inputContacto.value = '';
+        document.getElementById('banco_nombre').value = '';
+        document.getElementById('cuenta_numero').value = '';
+        document.getElementById('nombre_cuenta').value = '';
+    }
+}
+
+async function cargarDetalle(id) {
+    try {
+        const response = await fetch(`/Orden/GetDetalleSolicitud?id=${id}`);
+        const data = await response.json();
+
+        let html = '';
+        if (data && data.length > 0) {
+            data.forEach((d, index) => {
+                html += `
+                    <tr class="border-b border-gray-600 hover:bg-gray-600" data-detalle-id="${d.id}">
+                        <td class="px-2 py-3 text-center">
+                            <input type="checkbox" class="chk-producto w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded" checked>
+                        </td>
+                        <td class="px-2 py-3 text-white">${d.codigo || ''}</td>
+                        <td class="px-2 py-3 text-center text-white">${index + 1}</td>
+                        <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
+                        <td class="px-2 py-3">
+                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed" 
+                                   value="${d.fechaEntrega || ''}" readonly>
+                        </td>
+                        <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
+                        <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
+                        <td class="px-2 py-3 text-center text-white cantidad-producto">${d.cantidad || 0}</td>
+                        <td class="px-2 py-3">
+                            <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                                   placeholder="0.00" onkeyup="calcularTotal(this)">
+                        </td>
+                        <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
+                    </tr>
+                `;
+            });
+        } else {
+            html = `
+                <tr>
+                    <td colspan="10" class="text-center py-4 text-gray-400">
+                        No hay productos disponibles (todos están en uso)
+                    </td>
+                </tr>
+            `;
+        }
+
+        document.getElementById('body_detalle').innerHTML = html;
+    } catch (error) {
+        console.error('Error al cargar detalle:', error);
+    }
+}
+async function cargarDetallesPorProveedor(proveedor) {
+    try {
+        const response = await fetch(`/Orden/GetDetallesPorProveedor?proveedor=${encodeURIComponent(proveedor)}`);
+        const data = await response.json();
+
+        let html = '';
+        if (data && data.length > 0) {
+            data.forEach((d, index) => {
+                html += `
+                    <tr class="border-b border-gray-600 hover:bg-gray-600" data-detalle-id="${d.id}">
+                        <td class="px-2 py-3 text-center">
+                            <input type="checkbox" class="chk-producto w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded" checked>
+                        </td>
+                        <td class="px-2 py-3 text-white">${d.codigo || ''}</td>
+                        <td class="px-2 py-3 text-center text-white">${index + 1}</td>
+                        <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
+                        <td class="px-2 py-3">
+                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed" 
+                                   value="${d.fechaEntrega || ''}" readonly>
+                        </td>
+                        <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
+                        <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
+                        <td class="px-2 py-3 text-center text-white cantidad-producto">${d.cantidad || 0}</td>
+                        <td class="px-2 py-3 text-gray-400">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
+                        <td class="px-2 py-3 text-gray-400">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
+                        
+                        <td class="px-2 py-3">
+                            <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                                   placeholder="0.00" onkeyup="calcularTotal(this)">
+                        </td>
+                        <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
+                    </tr>
+                `;
+            });
+        } else {
+            html = `
+                <tr>
+                    <td colspan="10" class="text-center py-4 text-gray-400">
+                        No hay productos disponibles con estado "Creado" para este proveedor
+                    </td>
+                </tr>
+            `;
+        }
+
+        document.getElementById('body_detalle').innerHTML = html;
+    } catch (error) {
+        console.error('Error al cargar detalles por proveedor:', error);
+    }
+}
+
+function calcularTotal(input) {
+    const fila = input.closest('tr');
+    const cantidad = parseFloat(fila.querySelector('.cantidad-producto').textContent) || 0;
+    const precio = parseFloat(input.value) || 0;
+    const total = (cantidad * precio).toFixed(2);
+
+    fila.querySelector('.total-fila').textContent = total;
+}
+
+function recopilarDatos() {
+    const idOrden = document.getElementById('id_orden').value;
+    const idSolicitud = document.getElementById('id_solicitud_actual').value;
+
+    if (!idSolicitud || idSolicitud === '0') {
+        mostrarAlerta('Por favor, seleccione un proveedor válido', 'warning');
+        return null;
+    }
+
+    const formaPago = document.querySelector('input[name="forma_pago"]:checked');
+
+    const datos = {
+        idOrden: idOrden ? parseInt(idOrden) : 0,
+        idSolicitud: parseInt(idSolicitud),
+        fecha: document.getElementById('fecha_orden').value,
+        proveedor: document.getElementById('select_proveedor').value,
+        telefono: document.getElementById('tel_prov').value,
+        contacto: document.getElementById('contacto_nom').value,
+        solicitante: document.getElementById('solicitante_orden').value,
+        rol: document.getElementById('rol_orden').value,
+        referencia: document.getElementById('referencia_orden').value,
+        tc: '6.96',
+        esImportacion: document.getElementById('es_importacion').checked,
+        cabecera: {
+            observacion: document.getElementById('observacion').value,
+            formaPago: formaPago ? formaPago.value : ''
+        },
+        entrega: {
+            medioTransporte: document.getElementById('medio_transporte').value,
+            responsableRecepcion: document.getElementById('responsable_recepcion').value,
+            fechaEntrega: document.getElementById('fecha_entrega_info').value,
+            lugarEntrega: document.getElementById('lugar_entrega').value
+        },
+        pago: {
+            anticipoF: document.getElementById('fecha_anticipo').value,
+            anticipoM: document.getElementById('monto_anticipo').value,
+            finalF: document.getElementById('fecha_pago_final').value,
+            finalM: document.getElementById('monto_pago_final').value,
+            banco: document.getElementById('banco_nombre').value,
+            cuenta: document.getElementById('cuenta_numero').value,
+            nombreCuenta: document.getElementById('nombre_cuenta').value,
+            swift: document.getElementById('codigo_swift').value,
+            incoterm: document.getElementById('incoterm').value
+        },
+        facturacion: {
+            razon: document.getElementById('razon_social_factura').value,
+            nit: document.getElementById('nit_factura').value
+        },
+        productos: []
+    };
+
+    document.querySelectorAll('#body_detalle tr').forEach(fila => {
+        const check = fila.querySelector('.chk-producto');
+        if (check && check.checked) {
+            const idDetalle = fila.getAttribute('data-detalle-id');
+            const cells = fila.querySelectorAll('td');
+            const cantidadText = fila.querySelector('.cantidad-producto').textContent.trim();
+            const precioInput = fila.querySelector('.precio-producto');
+
+            datos.productos.push({
+                idDetalleSolicitud: parseInt(idDetalle),
+                codigo: cells[1]?.textContent.trim() || '',
+                nro: cells[2]?.textContent.trim() || '',
+                descripcion: cells[3]?.textContent.trim() || '',
+                fechaEntrega: fila.querySelector('.fecha-entrega')?.value || '',
+                caracteristicas: cells[5]?.textContent.trim() || '',
+                unidad: cells[6]?.textContent.trim() || '',
+                cantidad: parseFloat(cantidadText) || 0,
+                precio: parseFloat(precioInput?.value) || 0
+            });
+        }
+    });
+
+    if (datos.productos.length === 0) {
+        mostrarAlerta('Debe seleccionar al menos un producto', 'warning');
+        return null;
+    }
+
+    return datos;
+}
+
+async function guardarOrden() {
+    const datos = recopilarDatos();
+    if (!datos) return;
+
+    const url = datos.idOrden > 0 ? '/Orden/ActualizarOrden' : '/Orden/GuardarOrden';
+    const accion = datos.idOrden > 0 ? 'actualizada' : 'guardada';
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(datos)
+        });
+
+        const result = await response.json();
+        mostrarAlerta(result.mensaje, result.tipo);
+
+        if (result.tipo === 'success') {
+            cerrarModalOrden();
+            cargarOrdenes();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al guardar la orden', 'error');
+    }
+}
+
+async function editarOrden(id) {
+    try {
+        const response = await fetch(`/Orden/GetOrden?id=${id}`);
+        const data = await response.json();
+
+        if (data.tipo === 'error') {
+            mostrarAlerta(data.mensaje, 'error');
+            return;
+        }
+
+        ordenEditando = data.orden;
+        document.getElementById('titleModalOrden').innerHTML = '<i class="fas fa-edit mr-2 text-red-400"></i>EDITAR ORDEN DE COMPRA';
+        document.getElementById('id_orden').value = data.orden.id;
+
+        document.getElementById('fecha_orden').value = data.orden.fecha || '';
+        document.getElementById('select_proveedor').value = data.orden.proveedor || '';
+        document.getElementById('referencia_orden').value = data.orden.referencia || '';
+        document.getElementById('id_solicitud_actual').value = data.orden.idSolicitud || '';
+        document.getElementById('observacion').value = data.orden.observacion || '';
+        document.getElementById('es_importacion').checked = data.orden.esImportacion || false;
+        document.getElementById('tipo_orden_texto').textContent = data.orden.esImportacion ? 'Importación' : 'Nacional';
+        document.getElementById('tel_prov').value = data.orden.telefono || '';
+        document.getElementById('contacto_nom').value = data.orden.nomContacto || '';
+
+        if (data.orden.formaPago) {
+            const radio = document.querySelector(`input[name="forma_pago"][value="${data.orden.formaPago}"]`);
+            if (radio) radio.checked = true;
+        }
+
+        document.getElementById('medio_transporte').value = data.orden.medioTransporte || '';
+        document.getElementById('responsable_recepcion').value = data.orden.responsableRecepcion || '';
+        document.getElementById('fecha_entrega_info').value = data.orden.fechaEntrega || '';
+        document.getElementById('lugar_entrega').value = data.orden.lugarEntrega || '';
+
+        document.getElementById('fecha_anticipo').value = data.orden.fechaAnticipo || '';
+        document.getElementById('monto_anticipo').value = data.orden.montoAnticipo || '';
+        document.getElementById('fecha_pago_final').value = data.orden.fechaPagoFinal || '';
+        document.getElementById('monto_pago_final').value = data.orden.montoPagoFinal || '';
+        document.getElementById('banco_nombre').value = data.orden.banco || '';
+        document.getElementById('cuenta_numero').value = data.orden.cuenta || '';
+        document.getElementById('nombre_cuenta').value = data.orden.nombreCuentaBancaria || '';
+        document.getElementById('codigo_swift').value = data.orden.codigoSwift || '';
+        document.getElementById('incoterm').value = data.orden.incoterm || '';
+
+        document.getElementById('razon_social_factura').value = data.orden.razonSocial || '';
+        document.getElementById('nit_factura').value = data.orden.nit || '';
+
+        const idsEnOrden = new Set(data.productos.map(p => p.idDetalleSolicitud));
+
+        // Usar directamente el proveedor guardado en la orden
+        const responseDetalles = await fetch(`/Orden/GetDetallesPorProveedor?proveedor=${encodeURIComponent(data.orden.proveedor)}`);
+        const todosProductos = await responseDetalles.json();
+
+        const productosSoloDisponibles = Array.isArray(todosProductos)
+            ? todosProductos.filter(d => !idsEnOrden.has(d.id))
+            : [];
+
+        let html = '';
+        let index = 1;
+
+        if (data.productos && data.productos.length > 0) {
+            data.productos.forEach(p => {
+                html += `
+                    <tr class="border-b border-gray-600 hover:bg-gray-600" data-detalle-id="${p.idDetalleSolicitud}">
+                        <td class="px-2 py-3 text-center">
+                            <input type="checkbox" class="chk-producto w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded" checked>
+                        </td>
+                        <td class="px-2 py-3 text-white">${p.codigo || ''}</td>
+                        <td class="px-2 py-3 text-center text-white">${index++}</td>
+                        <td class="px-2 py-3 text-white">${p.descripcion || ''}</td>
+                        <td class="px-2 py-3">
+                            <input type="date" class="fecha-entrega bg-gray-800 border border-gray-700 text-white text-xs rounded p-1 w-full">
+                        </td>
+                        <td class="px-2 py-3 text-white">${p.caracteristicas || ''}</td>
+                        <td class="px-2 py-3 text-center text-white">${p.unidad || ''}</td>
+                        <td class="px-2 py-3 text-center text-white cantidad-producto">${p.cantidad || 0}</td>
+                        <td class="px-2 py-3 text-gray-400">${p.ultimoPrecio > 0 ? parseFloat(p.ultimoPrecio).toFixed(2) : '-'}</td>
+                        <td class="px-2 py-3 text-gray-400">${p.fultimoPrecio ? new Date(p.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
+                        <td class="px-2 py-3">
+                            <input type="number" step="0.01" value="${p.precio || 0}" 
+                                   class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                                   placeholder="0.00" onkeyup="calcularTotal(this)">
+                        </td>
+                        <td class="px-2 py-3 text-right font-bold text-white total-fila">${(p.cantidad * p.precio).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        productosSoloDisponibles.forEach(d => {
+            html += `
+                <tr class="border-b border-gray-600 hover:bg-gray-600" data-detalle-id="${d.id}">
+                    <td class="px-2 py-3 text-center">
+                        <input type="checkbox" class="chk-producto w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded">
+                    </td>
+                    <td class="px-2 py-3 text-white">${d.codigo || ''}</td>
+                    <td class="px-2 py-3 text-center text-white">${index++}</td>
+                    <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
+                    <td class="px-2 py-3">
+                        <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed" 
+                               value="${d.fechaEntrega || ''}" readonly>
+                    </td>
+                    <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
+                    <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
+                    <td class="px-2 py-3 text-center text-white cantidad-producto">${d.cantidad || 0}</td>
+                    <td class="px-2 py-3 text-gray-400">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
+                    <td class="px-2 py-3 text-gray-400">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
+                    <td class="px-2 py-3">
+                        <input type="number" step="0.01" 
+                               class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                               placeholder="0.00" onkeyup="calcularTotal(this)">
+                    </td>
+                    <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
+                </tr>
+            `;
+        });
+
+        document.getElementById('body_detalle').innerHTML = html || `
+            <tr>
+                <td colspan="12" class="text-center py-4 text-gray-400">No hay productos disponibles</td>
+            </tr>
+        `;
+
+        // Agregar opción del proveedor al select si no existe
+        const select = document.getElementById('select_proveedor');
+        const opcionExiste = Array.from(select.options).some(o => o.value === data.orden.proveedor);
+        if (!opcionExiste && data.orden.proveedor) {
+            const option = document.createElement('option');
+            option.value = data.orden.proveedor;
+            option.textContent = data.orden.proveedor;
+            select.appendChild(option);
+        }
+        select.value = data.orden.proveedor || '';
+
+        const modal = new Modal(document.getElementById('modalOrden'));
+        modal.show();
+
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al cargar la orden', 'error');
+    }
+}
+
+function eliminarOrden(id) {
+    Swal.fire({
+        title: '¿Está seguro de eliminar la orden?',
+        text: "Esta acción no se puede revertir",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#3085d6',
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        background: '#1f2937',
+        color: '#ffffff'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch('/Orden/EliminarOrden?id=' + id, {
+                method: 'POST'
+            })
+                .then(resp => resp.json())
+                .then(data => {
+                    mostrarAlerta(data.mensaje, data.tipo);
+                    if (data.tipo === 'success') {
+                        cargarOrdenes();
+                    }
+                })
+                .catch(err => {
+                    mostrarAlerta('Error al eliminar: ' + err, 'error');
+                });
+        }
+    });
+}
+
+function limpiarFormulario() {
+    document.getElementById('select_proveedor').value = '';
+    document.getElementById('tel_prov').value = '';
+    document.getElementById('contacto_nom').value = '';
+    document.getElementById('referencia_orden').value = '';
+    document.getElementById('id_solicitud_actual').value = '';
+    document.getElementById('observacion').value = '';
+    document.getElementById('es_importacion').checked = false;
+    document.getElementById('tipo_orden_texto').textContent = 'Nacional';
+    document.querySelectorAll('input[name="forma_pago"]').forEach(r => r.checked = false);
+
+    document.getElementById('medio_transporte').value = '';
+    document.getElementById('responsable_recepcion').value = '';
+    document.getElementById('fecha_entrega_info').value = '';
+    document.getElementById('lugar_entrega').value = '';
+
+    document.getElementById('fecha_anticipo').value = '';
+    document.getElementById('monto_anticipo').value = '';
+    document.getElementById('fecha_pago_final').value = '';
+    document.getElementById('monto_pago_final').value = '';
+    document.getElementById('banco_nombre').value = '';
+    document.getElementById('cuenta_numero').value = '';
+    document.getElementById('nombre_cuenta').value = '';
+    document.getElementById('codigo_swift').value = '';
+    document.getElementById('incoterm').value = '';
+
+    document.getElementById('razon_social_factura').value = '';
+    document.getElementById('nit_factura').value = '';
+
+    document.getElementById('body_detalle').innerHTML = `
+        <tr>
+            <td colspan="10" class="text-center py-4 text-gray-400">
+                Seleccione un proveedor para cargar datos...
+            </td>
+        </tr>
+    `;
+}
+
+function cerrarModalOrden() {
+    const modal = new Modal(document.getElementById('modalOrden'));
+    modal.hide();
+    limpiarFormulario();
+}
+
+
+async function vistaPreviaOrden(id) {
+    try {
+        const response = await fetch('/Orden/GenerarPdfVistaPrevia', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ idOrden: id })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+
+            window.open(url, '_blank');
+
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        } else {
+            mostrarAlerta('Error al generar vista previa', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al generar vista previa', 'error');
+    }
+}
+
+async function descargarPdfOrden(id) {
+    try {
+        const response = await fetch('/Orden/GenerarPdf', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ idOrden: id })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `OC_${id}_${new Date().toLocaleDateString('es-ES').replace(/\//g, '')}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            mostrarAlerta('PDF descargado exitosamente', 'success');
+        } else {
+            mostrarAlerta('Error al generar PDF', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al generar PDF', 'error');
+    }
+}
+
+async function verEstadoOrden(id) {
+    try {
+        const responseOrden = await fetch(`/Orden/GetOrden?id=${id}`);
+        const dataOrden = await responseOrden.json();
+
+        if (dataOrden.tipo === 'error') {
+            mostrarAlerta(dataOrden.mensaje, 'error');
+            return;
+        }
+
+        const responsePdf = await fetch('/Orden/GenerarPdfVistaPrevia', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ idOrden: id })
+        });
+
+        if (responsePdf.ok) {
+            const blob = await responsePdf.blob();
+            const url = URL.createObjectURL(blob);
+
+            document.getElementById('iframePDFEstado').src = url;
+            document.getElementById('numero_orden_modal').textContent = id;
+            document.getElementById('id_orden_estado').value = id;
+
+            const infoSolicitud = document.getElementById('info_solicitud_vinculada');
+
+            const solicitudesUnicas = [...new Set(dataOrden.productos.map(p => p.idSolicitud))];
+
+            if (solicitudesUnicas.length > 0) {
+                let htmlSolicitudes = '<div class="text-[11px] text-gray-400 space-y-1">';
+
+                for (const idSol of solicitudesUnicas) {
+                    try {
+                        const responseSolicitud = await fetch(`/Solicitudes/GetSolicitud?id=${idSol}`);
+                        const dataSolicitud = await responseSolicitud.json();
+
+                        let fechaReq = 'No especificada';
+                        if (dataSolicitud.solicitud && dataSolicitud.solicitud.frequerimiento) {
+                            const fecha = new Date(dataSolicitud.solicitud.frequerimiento);
+                            fechaReq = fecha.toLocaleDateString('es-ES');
+                        }
+
+                        htmlSolicitudes += `
+                <div>
+                    <span class="font-semibold">Solicitud:</span> #${idSol} | 
+                    <span class="font-semibold">F. Requerimiento:</span> ${fechaReq}
+                </div>
+            `;
+                    } catch (error) {
+                        console.error(`Error al cargar solicitud ${idSol}:`, error);
+                    }
+                }
+
+                htmlSolicitudes += '</div>';
+                infoSolicitud.innerHTML = htmlSolicitudes;
+            } else {
+                infoSolicitud.innerHTML = '<div class="text-[11px] text-gray-400">Sin solicitudes vinculadas</div>';
+            }
+
+            const responseHistorial = await fetch(`/Orden/GetHistorialEstados?idOrden=${id}`);
+            const historial = await responseHistorial.json();
+
+            const contenedorEstados = document.getElementById('contenedor_estados');
+            contenedorEstados.innerHTML = '';
+
+            const esImportacion = dataOrden.orden.esImportacion;
+            const estadoActual = dataOrden.orden.idEstadoSolicitud;
+
+            const estadosFiltrados = estadosDisponibles.filter(e => {
+                if (esImportacion) {
+                    return e.id >= 1 && e.id <= 9;
+                } else {
+                    return [1, 2, 3, 8, 9].includes(e.id);
+                }
+            });
+
+            estadosFiltrados.forEach(estado => {
+                const isActual = estado.id === estadoActual;
+
+                const umbralBloqueo = esImportacion ? 3 : 3;
+                const esBloqueado = estadoActual >= umbralBloqueo && estado.id < estadoActual;
+
+                const ultimoCambio = historial.find(h => h.estadoNuevo === estado.estado);
+
+                const btn = document.createElement('button');
+
+                let btnClass = '';
+                if (isActual) {
+                    btnClass = `badge-estado estado-${estado.id} ring-2 ring-gray-400`;
+                } else if (esBloqueado) {
+                    btnClass = 'bg-gray-700 text-gray-300 cursor-not-allowed';
+                } else {
+                    btnClass = 'bg-gray-700 text-gray-300 hover:bg-gray-600';
+                }
+
+                btn.className = `px-3 py-2 rounded-lg font-semibold text-xs transition-all ${btnClass}`;
+
+                btn.innerHTML = `
+        <div>${estado.estado}</div>
+        ${ultimoCambio ? `<div class="text-[10px] opacity-75 mt-1">${ultimoCambio.usuario} - ${ultimoCambio.fecha}</div>` : ''}
+    `;
+
+                if (esBloqueado) {
+                    btn.title = 'No se puede retroceder a este estado';
+                    btn.onclick = () => { }; 
+                } else {
+                    btn.title = estado.detalle || '';
+                    btn.onclick = () => cambiarEstado(id, estado.id);
+                }
+
+                contenedorEstados.appendChild(btn);
+            });
+
+            const modal = new Modal(document.getElementById('modalEstadoPDF'));
+            modal.show();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al cargar la orden', 'error');
+    }
+}
+
+async function cambiarEstado(idOrden, nuevoEstado) {
+    const responseOrden = await fetch(`/Orden/GetOrden?id=${idOrden}`);
+    const dataOrden = await responseOrden.json();
+    const estadoActual = dataOrden.orden.idEstadoSolicitud;
+
+    if (nuevoEstado === estadoActual) {
+        mostrarAlerta('LA ORDEN YA SE ENCUENTRA EN ESTE ESTADO', 'warning');
+        return;
+    }
+
+    if (nuevoEstado < estadoActual) {
+        mostrarAlerta('NO SE PUEDE RETROCEDER A UN ESTADO ANTERIOR', 'error');
+        return;
+    }
+
+    const estadoNombre = estadosDisponibles.find(e => e.id === nuevoEstado)?.estado || 'este estado';
+
+    const result = await Swal.fire({
+        title: '¿Cambiar estado de la orden?',
+        html: `¿Está seguro de cambiar el estado a <strong>${estadoNombre}</strong>?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'Sí, cambiar',
+        cancelButtonText: 'Cancelar',
+        background: '#1f2937',
+        color: '#ffffff'
+    });
+
+    if (!result.isConfirmed) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/Orden/CambiarEstado', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                idOrden: idOrden,
+                nuevoEstado: nuevoEstado
+            })
+        });
+
+        const data = await response.json();
+        mostrarAlerta(data.mensaje, data.tipo);
+
+        if (data.tipo === 'success') {
+            await verEstadoOrden(idOrden);
+            cargarOrdenes();
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al cambiar estado', 'error');
+    }
+}
+
+function cerrarModalEstadoPDF() {
+    const modal = new Modal(document.getElementById('modalEstadoPDF'));
+    modal.hide();
+    document.getElementById('iframePDFEstado').src = '';
+}
+
+
+function mostrarAlerta(mensaje, tipo) {
+    Swal.fire({
+        position: "center",
+        icon: tipo,
+        title: mensaje,
+        showConfirmButton: false,
+        timer: 1500,
+        background: '#1f2937',
+        color: '#ffffff',
+        toast: true,
+        timerProgressBar: true
+    });
+}
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.uppercase').forEach(input => {
+        input.addEventListener('input', function () {
+            this.value = this.value.toUpperCase();
+        });
+    });
+});

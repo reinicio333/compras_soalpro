@@ -1,0 +1,307 @@
+﻿@using System.Security.Claims
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="keywords" content="">
+    <meta name="author" content="">
+    <meta name="robots" content="">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Fillow : Fillow Saas Admin  Bootstrap 5 Template">
+    <meta property="og:title" content="Fillow : Fillow Saas Admin  Bootstrap 5 Template">
+    <meta property="og:description" content="Fillow : Fillow Saas Admin  Bootstrap 5 Template">
+    <meta property="og:image" content="https:/fillow.dexignlab.com/xhtml/social-image.png">
+    <meta name="format-detection" content="telephone=no">
+
+    <!-- PAGE TITLE HERE -->
+    <title>SBE</title>
+
+    <link rel="shortcut icon" type="image/x-icon" href="~/images/FAVICON.png">
+    <!-- FAVICONS ICON -->
+    <script src="/lib/tailwindcss.js"></script>
+
+    <link href="/lib/flowbite.min.css" rel="stylesheet" />
+    <!-- CDN Links para DataTables y dependencias -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <link href="/lib/fontawesome.min.css" rel="stylesheet" />
+    <link href="/lib/select2.min.css" rel="stylesheet" />
+    <link href="/lib/selectize.default.min.css" rel="stylesheet" />
+
+    <link rel="stylesheet" href="~/css/datatablesmy.css" />
+    <link rel="stylesheet" href="~/css/subMenu.css" />
+
+    <style>
+        /* Estilos para el sidebar colapsado */
+        #separator-sidebar {
+            transition: width 0.3s ease;
+        }
+
+            #separator-sidebar.collapsed {
+                width: 4rem !important;
+            }
+
+                #separator-sidebar.collapsed .nav-text,
+                #separator-sidebar.collapsed .flex-1 {
+                    display: none;
+                }
+
+                #separator-sidebar.collapsed .submenu {
+                    display: none !important;
+                }
+
+        .main-content {
+            transition: margin-left 0.3s ease;
+        }
+
+            .main-content.sidebar-collapsed {
+                margin-left: 4rem !important;
+            }
+
+        /* Tooltip para iconos cuando está colapsado */
+        .sidebar-tooltip {
+            position: relative;
+        }
+
+            .sidebar-tooltip:hover::after {
+                content: attr(data-tooltip);
+                position: absolute;
+                left: 100%;
+                top: 50%;
+                transform: translateY(-50%);
+                margin-left: 0.5rem;
+                padding: 0.5rem 0.75rem;
+                background-color: #1f2937;
+                color: white;
+                border-radius: 0.375rem;
+                white-space: nowrap;
+                z-index: 50;
+                font-size: 0.875rem;
+            }
+
+        #separator-sidebar.collapsed .sidebar-tooltip:hover::after {
+            display: block;
+        }
+
+        #separator-sidebar:not(.collapsed) .sidebar-tooltip:hover::after {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-700" translate="no">
+    <div id="">
+
+        <nav class="border-gray-200 bg-gray-900 fixed w-full z-30">
+            <div class="max-w-screen-xl flex flex-wrap items-center justify-between w-full p-0 min-w-full">
+
+                <!-- Logo y Botón Hamburguesa -->
+                <div class="flex items-center space-x-3 ml-2.5">
+                    <!-- Botón Hamburguesa para Desktop -->
+                    <button id="toggle-sidebar-desktop" type="button"
+                            class="hidden sm:inline-flex items-center p-2 text-gray-400 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600">
+                        <span class="sr-only">Toggle sidebar</span>
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+
+                    <a asp-controller="Home" asp-action="Index" class="flex items-center space-x-3">
+                        <img src="~/images/FAVICON.png" class="h-16" alt="Logo" />
+                        <span class="text-2xl font-semibold text-white">Orion</span>
+                    </a>
+                </div>
+
+                <!-- User/Admin Menu -->
+                <div class="hidden md:flex items-center space-x-4 relative">
+                    <div class="relative">
+                        <button type="button" id="user-menu-button" data-dropdown-toggle="user-dropdown"
+                                class="flex items-center p-2 rounded-full bg-gray-800 focus:ring-2 focus:ring-gray-600">
+                            <span class="sr-only">Open user menu</span>
+                            <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                <path fill-rule="evenodd"
+                                      d="M12 20a7.966 7.966 0 0 1-5.002-1.756v-.683c0-1.794 1.492-3.25 3.333-3.25h3.334c1.84 0 3.333 1.456 3.333 3.25v.683A7.966 7.966 0 0 1 12 20ZM2 12C2 6.477 6.477 2 12 2s10 4.477 10 10c0 5.5-4.44 9.963-9.932 10h-.138C6.438 21.962 2 17.5 2 12Zm10-5c-1.84 0-3.333 1.455-3.333 3.25S10.159 13.5 12 13.5c1.84 0 3.333-1.455 3.333-3.25S13.841 7 12 7Z"
+                                      clip-rule="evenodd" />
+                            </svg>
+                        </button>
+
+                        <!-- Dropdown menú alineado a la derecha con margen  -->
+                        <div id="user-dropdown"
+                             class="hidden absolute right-[20px] mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
+                            <div class="px-4 py-3">
+                                <span class="block text-gray-900">@User.Identity.Name</span>
+                            </div>
+                            <ul class="py-2">
+                                <li>
+                                    <a asp-controller="Home" asp-action="CerrarSesion"
+                                       class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Cerrar Sesión</a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile menu button -->
+                <div class="md:hidden flex items-center">
+                    <button data-drawer-toggle="separator-sidebar" type="button"
+                            class="p-2 rounded-md text-gray-400 hover:text-white hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-600">
+                        <span class="sr-only">Open sidebar</span>
+                        <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                  d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"
+                                  clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <button data-drawer-target="separator-sidebar" data-drawer-toggle="separator-sidebar" aria-controls="separator-sidebar" type="button" class="inline-flex items-center p-2 mt-2 ms-3 text-sm text-gray-500 rounded-lg sm:hidden hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-200 dark:text-gray-400 dark:hover:bg-gray-700 dark:focus:ring-gray-600">
+            <span class="sr-only">Open sidebar</span>
+            <svg class="w-6 h-6" aria-hidden="true" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <path clip-rule="evenodd" fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"></path>
+            </svg>
+        </button>
+
+        <aside id="separator-sidebar" class="mt-[4rem] fixed top-0 left-0 z-40 w-64 h-screen transition-transform -translate-x-full sm:translate-x-0" aria-label="Sidebar">
+            <div class="h-full px-3 py-4 overflow-y-auto bg-gray-800">
+                <ul class="space-y-2 font-medium text-sm">
+                    @if (User.IsInRole("ADMINISTRADOR"))
+                    {
+                        <li>
+                            <a asp-controller="Usuarios" asp-action="Index"
+                               class="sidebar-tooltip flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group"
+                               data-tooltip="USUARIOS">
+                                <svg class="shrink-0 w-5 h-5 transition duration-75 text-gray-400 group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 18">
+                                    <path d="M14 2a3.963 3.963 0 0 0-1.4.267 6.439 6.439 0 0 1-1.331 6.638A4 4 0 1 0 14 2Zm1 9h-1.264A6.957 6.957 0 0 1 15 15v2a2.97 2.97 0 0 1-.184 1H19a1 1 0 0 0 1-1v-1a5.006 5.006 0 0 0-5-5ZM6.5 9a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9ZM8 10H5a5.006 5.006 0 0 0-5 5v2a1 1 0 0 0 1 1h11a1 1 0 0 0 1-1v-2a5.006 5.006 0 0 0-5-5Z" />
+                                </svg>
+                                <span class="flex-1 ms-3 whitespace-nowrap">USUARIOS</span>
+                            </a>
+                        </li>
+                    }
+
+                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR") || User.IsInRole("ALMACEN"))
+                    {
+                        
+                        
+                        <li>
+                            <a asp-controller="Solicitudes" asp-action="Index" class="flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group">
+                                <svg class="shrink-0 w-5 h-5 transition duration-75 text-gray-400 group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 14">
+                                    <path d="M18 0H2a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V2a2 2 0 0 0-2-2ZM2 12V6h16v6H2Z" />
+                                    <path d="M6 8H4a1 1 0 0 0 0 2h2a1 1 0 0 0 0-2Zm8 0H9a1 1 0 0 0 0 2h5a1 1 0 1 0 0-2Z" />
+                                </svg>
+                                <span class="flex-1 ms-3 whitespace-nowrap">SOLICITUDES</span>
+                            </a>
+                        </li>
+
+                    }
+                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR"))
+                    {
+
+
+                        
+                        <li>
+                            <a asp-controller="Orden" asp-action="Index" class="flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group">
+                                <svg class="shrink-0 w-5 h-5 transition duration-75 text-gray-400 group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M5 5V.13a2.96 2.96 0 0 0-1.293.749L.879 3.707A2.96 2.96 0 0 0 .13 5H5Z" />
+                                    <path d="M6.737 11.061a2.961 2.961 0 0 1 .81-1.515l6.117-6.116A4.839 4.839 0 0 1 16 2.141V2a1.97 1.97 0 0 0-1.933-2H7v5a2 2 0 0 1-2 2H0v11a1.969 1.969 0 0 0 1.933 2h12.134A1.97 1.97 0 0 0 16 18v-3.093l-1.546 1.546c-.413.413-.94.695-1.513.81l-3.4.679a2.947 2.947 0 0 1-1.85-.227 2.96 2.96 0 0 1-1.635-3.257l.681-3.397Z" />
+                                    <path d="M8.961 16a.93.93 0 0 0 .189-.019l3.4-.679a.961.961 0 0 0 .49-.263l6.118-6.117a2.884 2.884 0 0 0-4.079-4.078l-6.117 6.117a.96.96 0 0 0-.263.491l-.679 3.4A.961.961 0 0 0 8.961 16Zm7.477-9.8a.958.958 0 0 1 .68-.281.961.961 0 0 1 .682 1.644l-.315.315-1.36-1.36.313-.318Zm-5.911 5.911 4.236-4.236 1.359 1.359-4.236 4.237-1.7.339.341-1.699Z" />
+                                </svg>
+                                <span class="flex-1 ms-3 whitespace-nowrap">ORDEN DE COMPRAS</span>
+                            </a>
+                        </li>
+
+                    }
+                    @if (User.IsInRole("GERENCIA") || User.IsInRole("ADMINISTRADOR"))
+                    {
+                        <li>
+                            <a asp-controller="Orden" asp-action="Gerencia" class="flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group">
+                                <svg class="shrink-0 w-5 h-5 transition duration-75 text-gray-400 group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M11.644 1.59a.75.75 0 0 1 .712 0l9.75 5.25a.75.75 0 0 1 0 1.32l-9.75 5.25a.75.75 0 0 1-.712 0l-9.75-5.25a.75.75 0 0 1 0-1.32l9.75-5.25Z" />
+                                    <path d="m3.265 10.602 7.668 4.129a2.25 2.25 0 0 0 2.134 0l7.668-4.13 1.37.739a.75.75 0 0 1 0 1.32l-9.75 5.25a.75.75 0 0 1-.712 0l-9.75-5.25a.75.75 0 0 1 0-1.32l1.372-.738Z" />
+                                    <path d="m10.933 19.231-7.668-4.13-1.37.739a.75.75 0 0 0 0 1.32l9.75 5.25c.221.12.491.12.712 0l9.75-5.25a.75.75 0 0 0 0-1.32l-1.37-.738-7.668 4.13a2.25 2.25 0 0 1-2.136-.001Z" />
+                                </svg>
+                                <span class="flex-1 ms-3 leading-tight">ORDEN DE COMPRAS (PRE AUTORIZADOS)</span>
+                            </a>
+                        </li>
+                    }
+                    
+
+                    <li>
+                        <span class="nav-text text-muted small text-white">
+                            Rol: @(User.IsInRole("ADMINISTRADOR") ? "ADMINISTRADOR" : "USUARIO GENERAL")
+                        </span>
+                    </li>
+                </ul>
+            </div>
+        </aside>
+
+        <div id="main-content" class="main-content p-4 sm:ml-64 pt-[5rem]">
+            @RenderBody()
+        </div>
+    </div>
+
+    <!-- Scripts necesarios -->
+    <script>
+        // Función para toggle del sidebar en desktop
+        document.addEventListener('DOMContentLoaded', function () {
+            const toggleBtn = document.getElementById('toggle-sidebar-desktop');
+            const sidebar = document.getElementById('separator-sidebar');
+            const mainContent = document.getElementById('main-content');
+
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', function () {
+                    sidebar.classList.toggle('collapsed');
+                    mainContent.classList.toggle('sidebar-collapsed');
+                });
+            }
+
+            // Función para toggle del submenu
+            const currentPath = window.location.pathname.toLowerCase();
+            console.log('Current path:', currentPath);
+
+            // Marcar item activo
+            document.querySelectorAll('aside a').forEach(link => {
+                const href = link.getAttribute('href');
+
+                if (href && href !== '#') {
+                    const linkPath = href.toLowerCase();
+
+                    if (currentPath === linkPath || (linkPath.length > 1 && currentPath.startsWith(linkPath))) {
+                        link.classList.add('menu-item-active');
+                        console.log('Match found:', href);
+
+                        const parentSubmenu = link.closest('.submenu');
+                        if (parentSubmenu) {
+                            parentSubmenu.classList.add('open');
+                            const arrow = document.getElementById('arrow-reportes');
+                            if (arrow) arrow.style.transform = 'rotate(180deg)';
+                        }
+                    }
+                }
+            });
+        });
+
+        function toggleSubmenu(event) {
+            event.preventDefault();
+            const submenu = document.getElementById('submenu-reportes');
+            const arrow = document.getElementById('arrow-reportes');
+
+            if (submenu && arrow) {
+                submenu.classList.toggle('open');
+                arrow.style.transform = submenu.classList.contains('open') ? 'rotate(180deg)' : 'rotate(0deg)';
+            }
+        }
+    </script>
+
+    <script src="/lib/jquey_3.6.4.js"></script>
+    <script src="/lib/jszip.min.js"></script>
+    <script src="/lib/pdfmake.min.js"></script>
+    <script src="/lib/vfs_fonts.js"></script>
+    <script src="/lib/sweetalert2011.js"></script>
+    <script src="/lib/select2.min.js"></script>
+    <script src="/lib/flowbite.min.js"></script>
+    <script src="/lib/print.min.js"></script>
+    <script src="/lib/selectize.min.js"></script>
+</body>
+</html>

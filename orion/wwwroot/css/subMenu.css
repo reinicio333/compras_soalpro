@@ -1,0 +1,26 @@
+﻿/* Item activo del menú */
+.menu-item-active {
+    background-color: #153e60 !important; /* azul oscuro */
+}
+
+    /* También aplicar a items hover para mejor feedback */
+    .menu-item-active:hover {
+        background-color: #153e60 !important; /* azul más oscuro en hover */
+    }
+
+/* Submenu oculto por defecto */
+.submenu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+    /* Submenu visible */
+    .submenu.open {
+        max-height: 500px;
+    }
+
+    /* Items del submenu con más padding a la izquierda */
+    .submenu li a {
+        padding-left: 3rem !important;
+    }

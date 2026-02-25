@@ -1,0 +1,70 @@
+﻿
+main {
+    background: #EEE;
+    width: 600px;
+    margin: 20px auto;
+    padding: 10px 0;
+    box-shadow: 0 3px 5px rgba(0,0,0,0.3);
+}
+
+.vista_boletas h2 {
+    text-align: center;
+    color: white;
+}
+
+.vista_boletas p {
+    font-size: 13px;
+    color: white;
+}
+
+.vista_boletas input {
+    display: none;
+}
+
+.vista_boletas label {
+    display: block;
+    padding: 0.5em;
+    text-align: center;
+    border-bottom: 1px solid #CCC;
+    color: #666;
+    cursor: pointer;
+}
+
+.vista_boletas label:hover {
+    color: #000;
+}
+
+.vista_boletas label::before {
+    font-family: Consolas, monaco, monospace;
+    font-weight: bold;
+    font-size: 15px;
+    content: "+";
+    vertical-align: text-top;
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    margin-right: 3px;
+    background: radial-gradient(ellipse at center, #CCC 50%, transparent 50%);
+}
+
+.expand {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.5s ease-in-out;
+    background: url(http://placekitten.com/g/600/300);
+    color: #FFF;
+}
+
+    .expand.open {
+        max-height: 250px;
+    }
+
+.vista_boletas label.active::before {
+    content: "-";
+}
+
+.vista_boletas section h3 {
+    color: white;
+}
+
+

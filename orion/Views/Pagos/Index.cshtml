@@ -1,0 +1,44 @@
+﻿<div class="bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="p-3 bg-blue-600 rounded-lg">
+                <i class="fas fa-boxes text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Pagos Efectuados</h1>
+                <p class="text-gray-400 text-sm">Revisa los pagos efectuados</p>
+            </div>
+        </div>
+        
+        <!-- Botones de acción -->
+        <div class="flex space-x-3">
+            <button 
+                onclick="actualizarDatos()" 
+                class="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors duration-200 shadow-lg">
+                <i class="fas fa-sync-alt"></i>
+                <span>Actualizar Datos</span>
+            </button>
+            
+            <button 
+                onclick="exportarExcel()" 
+                class="flex items-center space-x-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors duration-200 shadow-lg">
+                <i class="fas fa-file-excel"></i>
+                <span>Exportar Excel</span>
+            </button>
+            
+            <button 
+                onclick="exportarPdf()" 
+                class="flex items-center space-x-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors duration-200 shadow-lg">
+                <i class="fas fa-file-pdf"></i>
+                <span>Exportar PDF</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="container-fluid mt-5" style="padding-top:0">
+    <div id="myGridPagos" class="ag-theme-quartz-dark" style="font-size: 12px;height:65vh;"></div>
+</div>
+
+<script src="~/lib/ag_grid/ag-grid.min.js"></script>
+<script src="~/js/pages/pagos.js"></script>
