@@ -18,4 +18,5 @@ public partial class Usuario
     public string? Contraseña { get; set; }
 
     public string? NomCompleto { get; set; }
+    public string? Area { get; set; }
 }

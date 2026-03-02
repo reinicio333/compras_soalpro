@@ -3,6 +3,7 @@ let gridApi;
 let proveedoresDisponibles = [];
 let estadosDisponibles = [];
 let ordenEditando = null;
+window.esUsuarioPlanta = false;
 
 // Configuración del Grid
 const gridOptions = {
@@ -34,11 +35,16 @@ const gridOptions = {
             field: "solicitante"
         },
         {
+            headerName: "Proveedor",
+            field: "proveedor"
+        },
+        {
             headerName: "Tipo",
             field: "esImportacion",
             width: 120,
+            valueGetter: params => params.data.esImportacion ? "IMPORTACION" : "NACIONAL",
             cellRenderer: params => {
-                return params.value
+                return params.value === "IMPORTACION"
                     ? '<span class="px-2 py-1 bg-gray-600 text-white rounded text-xs">IMPORTACION</span>'
                     : '<span class="px-2 py-1 bg-gray-500 text-white rounded text-xs">NACIONAL</span>';
             }
@@ -46,6 +52,7 @@ const gridOptions = {
         {
             headerName: "Estado",
             field: "estado",
+            minWidth: 200,
             cellRenderer: params => {
                 const estado = params.value || 'Sin Estado';
                 const idEstado = params.data.idEstado || 1;
@@ -53,42 +60,121 @@ const gridOptions = {
             }
         },
         {
+            headerName: "Fecha Estado",
+            field: "fechaEstado",
+            maxWidth: 150,
+            valueFormatter: params => {
+                if (params.value) {
+                    const fecha = new Date(params.value);
+                    return fecha.toLocaleDateString('es-ES', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                }
+                return '';
+            }
+        },
+        {
             headerName: "Acciones",
             field: "acciones",
+            filter: false,
+            floatingFilter: false,
             minWidth: 310,
             cellRenderer: params => {
                 const idEstado = params.data.idEstado || 1;
                 const esAprobadoOSuperior = idEstado >= 3;
 
+                if (window.esUsuarioPlanta) {
+                    return `
+                    <button onclick="verEstadoOrden(${params.data.id})" 
+                            class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                            title="Ver Estado">
+                        <i class="fas fa-tasks text-sm"></i>
+                    </button>
+                    <button onclick="vistaPreviaOrden(${params.data.id})" 
+                            class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                            title="Vista Previa">
+                        <i class="fas fa-eye text-sm"></i>
+                    </button>
+                    <button onclick="descargarPdfOrden(${params.data.id})" 
+                            class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                            title="Descargar PDF">
+                        <i class="fas fa-file-download text-sm"></i>
+                    </button>
+            `;
+                }
+
+                if (window.tipoUsuario === 'ALMACEN') {
+                    return `
+                <button onclick="verEstadoOrden(${params.data.id})" 
+                        class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                        title="Ver Estado">
+                    <i class="fas fa-tasks text-sm"></i>
+                </button>
+                <button onclick="vistaPreviaOrden(${params.data.id})" 
+                        class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                        title="Vista Previa">
+                    <i class="fas fa-eye text-sm"></i>
+                </button>
+                <button onclick="descargarPdfOrden(${params.data.id})" 
+                        class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                        title="Descargar PDF">
+                    <i class="fas fa-file-download text-sm"></i>
+                </button>
+            `;
+                }
+                if (window.tipoUsuario === 'GERENCIA') {
+                    return `
+                        <button onclick="verEstadoOrden(${params.data.id})" 
+                                class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                                title="Ver Estado">
+                            <i class="fas fa-tasks text-sm"></i>
+                        </button>
+                        <button onclick="vistaPreviaOrden(${params.data.id})" 
+                                class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                                title="Vista Previa">
+                            <i class="fas fa-eye text-sm"></i>
+                        </button>
+                        <button onclick="descargarPdfOrden(${params.data.id})" 
+                                class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                                title="Descargar PDF">
+                            <i class="fas fa-file-download text-sm"></i>
+                        </button>
+                    `;
+                }
+
                 return `
-        <button onclick="verEstadoOrden(${params.data.id})" 
-                class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
-                title="Ver/Cambiar Estado">
-            <i class="fas fa-tasks text-sm"></i>
-        </button>
-        <button onclick="vistaPreviaOrden(${params.data.id})" 
-                class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
-                title="Vista Previa">
-            <i class="fas fa-eye text-sm"></i>
-        </button>
-        <button onclick="descargarPdfOrden(${params.data.id})" 
-                class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
-                title="Descargar PDF">
-            <i class="fas fa-file-download text-sm"></i>
-        </button>
-        ${esAprobadoOSuperior ? '' : `
-    <button onclick="editarOrden(${params.data.id})" 
-            class="px-3 py-1 text-yellow-600 hover:bg-yellow-700 hover:text-white rounded-lg transition-all" 
-            title="Editar">
-        <i class="fas fa-edit text-sm"></i>
-    </button>
-    <button onclick="eliminarOrden(${params.data.id})" 
-            class="px-3 py-1 text-red-600 hover:bg-red-700 hover:text-white rounded-lg transition-all" 
-            title="Eliminar">
-        <i class="fas fa-trash text-sm"></i>
-    </button>
-`}
-    `;
+            <button onclick="verEstadoOrden(${params.data.id})" 
+                    class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                    title="Ver/Cambiar Estado">
+                <i class="fas fa-tasks text-sm"></i>
+            </button>
+            <button onclick="vistaPreviaOrden(${params.data.id})" 
+                    class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                    title="Vista Previa">
+                <i class="fas fa-eye text-sm"></i>
+            </button>
+            <button onclick="descargarPdfOrden(${params.data.id})" 
+                    class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                    title="Descargar PDF">
+                <i class="fas fa-file-download text-sm"></i>
+            </button>
+            ${esAprobadoOSuperior ? '' : `
+                <button onclick="editarOrden(${params.data.id})" 
+                        class="px-3 py-1 text-yellow-600 hover:bg-yellow-700 hover:text-white rounded-lg transition-all" 
+                        title="Editar">
+                    <i class="fas fa-edit text-sm"></i>
+                </button>
+                <button onclick="eliminarOrden(${params.data.id})" 
+                        class="px-3 py-1 text-red-600 hover:bg-red-700 hover:text-white rounded-lg transition-all" 
+                        title="Eliminar">
+                    <i class="fas fa-trash text-sm"></i>
+                </button>
+            `}
+        `;
             }
         }
     ],
@@ -97,7 +183,8 @@ const gridOptions = {
         filter: true,
         sortable: true,
         resizable: true,
-        minWidth: 100
+        minWidth: 100,
+        floatingFilter: true
     },
     pagination: true,
     paginationPageSize: 10,
@@ -115,8 +202,8 @@ const gridOptions = {
         loadingOoo: "Cargando...",
         noRowsToShow: "Sin órdenes para mostrar",
     },
-    onGridReady: () => {
-        cargarOrdenes();
+    onGridReady: async () => {
+        await cargarOrdenes();
     }
 };
 
@@ -140,19 +227,22 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
-function cargarOrdenes() {
+async function cargarOrdenes() {
+    const permisos = await verificarPermisos();
+    window.esUsuarioPlanta = permisos.tipo === 'PLANTA';
+    window.tipoUsuario = permisos.tipo;
+
+    if (window.esUsuarioPlanta || window.tipoUsuario === 'ALMACEN' || window.tipoUsuario === 'GERENCIA') {
+        document.getElementById('btnNuevaOrden').style.display = 'none';
+    }
+
     fetch('/Orden/ListarOrdenes')
         .then(resp => resp.json())
         .then(data => {
             if (Array.isArray(data)) {
                 gridApi.setGridOption('rowData', data);
-            } else if (data.tipo === 'error') {
-                mostrarAlerta(data.mensaje, 'error');
+                gridApi.refreshCells({ force: true });
             }
-        })
-        .catch(err => {
-            console.error("Error al cargar órdenes:", err);
-            mostrarAlerta('Error al cargar órdenes', 'error');
         });
 }
 
@@ -190,6 +280,11 @@ async function cargarEstados() {
         console.error('Error al cargar estados:', error);
     }
 }
+async function verificarPermisos() {
+    const response = await fetch('/Orden/GetTipoUsuario');
+    const data = await response.json();
+    return data;
+}
 
 function abrirModalNuevaOrden() {
     ordenEditando = null;
@@ -197,7 +292,8 @@ function abrirModalNuevaOrden() {
     document.getElementById('id_orden').value = '';
 
     limpiarFormulario();
-
+    document.getElementById('razon_social_factura').value = 'SOALPRO S.R.L.';
+    autocompletarNit('SOALPRO S.R.L.');
     const hoy = new Date();
     const fechaLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     document.getElementById('fecha_orden').value = fechaLocal;
@@ -326,22 +422,37 @@ async function cargarDetallesPorProveedor(proveedor) {
                         </td>
                         <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
                         <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
-                        <td class="px-2 py-3 text-center text-white cantidad-producto">${d.cantidad || 0}</td>
+                        
+                        <td class="px-2 py-3 text-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" class="chk-stock sr-only peer">
+                                <div class="w-8 h-4 bg-gray-600 rounded-full peer 
+                                            peer-checked:bg-green-500
+                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                                            after:bg-white after:rounded-full after:h-3 after:w-3 
+                                            after:transition-all peer-checked:after:translate-x-4 relative">
+                                </div>
+                            </label>
+                        </td>
                         <td class="px-2 py-3 text-gray-400">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
                         <td class="px-2 py-3 text-gray-400">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
-                        
+                        <td class="px-2 py-3">
+                            <input type="number" step="0.01" class="cantidad-producto bg-gray-800 border border-gray-600 text-white text-xs rounded p-1 w-full text-center"
+                                   value="${d.cantidad || 0}" onkeyup="calcularTotal(this)">
+                        </td>
                         <td class="px-2 py-3">
                             <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
                                    placeholder="0.00" onkeyup="calcularTotal(this)">
                         </td>
                         <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
+                        <td class="cantidad-solicitada" style="display:none">${d.cantidad || 0}</td>
                     </tr>
                 `;
             });
         } else {
             html = `
                 <tr>
-                    <td colspan="10" class="text-center py-4 text-gray-400">
+                    <td colspan="12" class="text-center py-4 text-gray-400">
                         No hay productos disponibles con estado "Creado" para este proveedor
                     </td>
                 </tr>
@@ -356,10 +467,9 @@ async function cargarDetallesPorProveedor(proveedor) {
 
 function calcularTotal(input) {
     const fila = input.closest('tr');
-    const cantidad = parseFloat(fila.querySelector('.cantidad-producto').textContent) || 0;
-    const precio = parseFloat(input.value) || 0;
+    const cantidad = parseFloat(fila.querySelector('.cantidad-producto')?.value) || 0;
+    const precio = parseFloat(fila.querySelector('.precio-producto')?.value) || 0;
     const total = (cantidad * precio).toFixed(2);
-
     fila.querySelector('.total-fila').textContent = total;
 }
 
@@ -419,7 +529,7 @@ function recopilarDatos() {
         if (check && check.checked) {
             const idDetalle = fila.getAttribute('data-detalle-id');
             const cells = fila.querySelectorAll('td');
-            const cantidadText = fila.querySelector('.cantidad-producto').textContent.trim();
+            const cantidadInput = fila.querySelector('.cantidad-producto');
             const precioInput = fila.querySelector('.precio-producto');
 
             datos.productos.push({
@@ -430,8 +540,9 @@ function recopilarDatos() {
                 fechaEntrega: fila.querySelector('.fecha-entrega')?.value || '',
                 caracteristicas: cells[5]?.textContent.trim() || '',
                 unidad: cells[6]?.textContent.trim() || '',
-                cantidad: parseFloat(cantidadText) || 0,
-                precio: parseFloat(precioInput?.value) || 0
+                cantidad: parseFloat(fila.querySelector('.cantidad-producto')?.value) || 0,
+                precio: parseFloat(fila.querySelector('.precio-producto')?.value) || 0,
+                esStock: fila.querySelector('.chk-stock')?.checked || false 
             });
         }
     });
@@ -522,7 +633,6 @@ async function editarOrden(id) {
 
         const idsEnOrden = new Set(data.productos.map(p => p.idDetalleSolicitud));
 
-        // Usar directamente el proveedor guardado en la orden
         const responseDetalles = await fetch(`/Orden/GetDetallesPorProveedor?proveedor=${encodeURIComponent(data.orden.proveedor)}`);
         const todosProductos = await responseDetalles.json();
 
@@ -548,15 +658,30 @@ async function editarOrden(id) {
                         </td>
                         <td class="px-2 py-3 text-white">${p.caracteristicas || ''}</td>
                         <td class="px-2 py-3 text-center text-white">${p.unidad || ''}</td>
-                        <td class="px-2 py-3 text-center text-white cantidad-producto">${p.cantidad || 0}</td>
+                        <td class="px-2 py-3 text-center">
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" class="chk-stock sr-only peer" ${p.esStock ? 'checked' : ''}>
+                                <div class="w-8 h-4 bg-gray-600 rounded-full peer 
+                                            peer-checked:bg-green-500
+                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                                            after:bg-white after:rounded-full after:h-3 after:w-3 
+                                            after:transition-all peer-checked:after:translate-x-4 relative">
+                                </div>
+                            </label>
+                        </td>
                         <td class="px-2 py-3 text-gray-400">${p.ultimoPrecio > 0 ? parseFloat(p.ultimoPrecio).toFixed(2) : '-'}</td>
                         <td class="px-2 py-3 text-gray-400">${p.fultimoPrecio ? new Date(p.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
                         <td class="px-2 py-3">
-                            <input type="number" step="0.01" value="${p.precio || 0}" 
-                                   class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                            <input type="number" step="0.01" class="cantidad-producto bg-gray-800 border border-gray-600 text-white text-xs rounded p-1 w-full text-center"
+                                   value="${p.cantidad || 0}" onkeyup="calcularTotal(this)">
+                        </td>
+                        <td class="px-2 py-3">
+                            <input type="number" step="0.01" value="${p.precio || 0}"
+                                   class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right"
                                    placeholder="0.00" onkeyup="calcularTotal(this)">
                         </td>
-                        <td class="px-2 py-3 text-right font-bold text-white total-fila">${(p.cantidad * p.precio).toFixed(2)}</td>
+                        <td class="px-2 py-3 text-right font-bold text-white total-fila">${((p.cantidad || 0) * (p.precio || 0)).toFixed(2)}</td>
+                        <td class="cantidad-solicitada" style="display:none">${p.cantidadSolicitada || p.cantidad || 0}</td>
                     </tr>
                 `;
             });
@@ -572,20 +697,35 @@ async function editarOrden(id) {
                     <td class="px-2 py-3 text-center text-white">${index++}</td>
                     <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
                     <td class="px-2 py-3">
-                        <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed" 
+                        <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed"
                                value="${d.fechaEntrega || ''}" readonly>
                     </td>
                     <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
                     <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
-                    <td class="px-2 py-3 text-center text-white cantidad-producto">${d.cantidad || 0}</td>
+                    <td class="px-2 py-3 text-center">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="chk-stock sr-only peer">
+                            <div class="w-8 h-4 bg-gray-600 rounded-full peer 
+                                        peer-checked:bg-green-500
+                                        after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
+                                        after:bg-white after:rounded-full after:h-3 after:w-3 
+                                        after:transition-all peer-checked:after:translate-x-4 relative">
+                            </div>
+                        </label>
+                    </td>
                     <td class="px-2 py-3 text-gray-400">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
                     <td class="px-2 py-3 text-gray-400">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
                     <td class="px-2 py-3">
-                        <input type="number" step="0.01" 
-                               class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                        <input type="number" step="0.01" class="cantidad-producto bg-gray-800 border border-gray-600 text-white text-xs rounded p-1 w-full text-center"
+                               value="${d.cantidad || 0}" onkeyup="calcularTotal(this)">
+                    </td>
+                    <td class="px-2 py-3">
+                        <input type="number" step="0.01"
+                               class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right"
                                placeholder="0.00" onkeyup="calcularTotal(this)">
                     </td>
                     <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
+                    <td class="cantidad-solicitada" style="display:none">${d.cantidad || 0}</td>
                 </tr>
             `;
         });
@@ -596,7 +736,6 @@ async function editarOrden(id) {
             </tr>
         `;
 
-        // Agregar opción del proveedor al select si no existe
         const select = document.getElementById('select_proveedor');
         const opcionExiste = Array.from(select.options).some(o => o.value === data.orden.proveedor);
         if (!opcionExiste && data.orden.proveedor) {
@@ -675,7 +814,8 @@ function limpiarFormulario() {
 
     document.getElementById('razon_social_factura').value = '';
     document.getElementById('nit_factura').value = '';
-
+    document.getElementById('razon_social_factura').value = 'SOALPRO S.R.L.';
+    document.getElementById('nit_factura').value = '1020409021';
     document.getElementById('body_detalle').innerHTML = `
         <tr>
             <td colspan="10" class="text-center py-4 text-gray-400">
@@ -761,9 +901,7 @@ async function verEstadoOrden(id) {
 
         const responsePdf = await fetch('/Orden/GenerarPdfVistaPrevia', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ idOrden: id })
         });
 
@@ -776,7 +914,6 @@ async function verEstadoOrden(id) {
             document.getElementById('id_orden_estado').value = id;
 
             const infoSolicitud = document.getElementById('info_solicitud_vinculada');
-
             const solicitudesUnicas = [...new Set(dataOrden.productos.map(p => p.idSolicitud))];
 
             if (solicitudesUnicas.length > 0) {
@@ -794,11 +931,11 @@ async function verEstadoOrden(id) {
                         }
 
                         htmlSolicitudes += `
-                <div>
-                    <span class="font-semibold">Solicitud:</span> #${idSol} | 
-                    <span class="font-semibold">F. Requerimiento:</span> ${fechaReq}
-                </div>
-            `;
+                            <div>
+                                <span class="font-semibold">Solicitud:</span> #${idSol} | 
+                                <span class="font-semibold">F. Requerimiento:</span> ${fechaReq}
+                            </div>
+                        `;
                     } catch (error) {
                         console.error(`Error al cargar solicitud ${idSol}:`, error);
                     }
@@ -813,6 +950,12 @@ async function verEstadoOrden(id) {
             const responseHistorial = await fetch(`/Orden/GetHistorialEstados?idOrden=${id}`);
             const historial = await responseHistorial.json();
 
+            const responsePermisos = await fetch('/Orden/GetTipoUsuario');
+            const permisos = await responsePermisos.json();
+            const esAlmacen = permisos.tipo === 'ALMACEN';
+            const esPlanta = permisos.tipo === 'PLANTA';
+            const esGerencia = permisos.tipo === 'GERENCIA';
+
             const contenedorEstados = document.getElementById('contenedor_estados');
             contenedorEstados.innerHTML = '';
 
@@ -821,17 +964,22 @@ async function verEstadoOrden(id) {
 
             const estadosFiltrados = estadosDisponibles.filter(e => {
                 if (esImportacion) {
-                    return e.id >= 1 && e.id <= 9;
+                    return ![6].includes(e.id);
                 } else {
-                    return [1, 2, 3, 8, 9].includes(e.id);
+                    return [1, 2, 3, 8, 9, 11].includes(e.id);
                 }
             });
 
             estadosFiltrados.forEach(estado => {
                 const isActual = estado.id === estadoActual;
 
-                const umbralBloqueo = esImportacion ? 3 : 3;
-                const esBloqueado = estadoActual >= umbralBloqueo && estado.id < estadoActual;
+                const umbralBloqueo = 3;
+                const esBloqueadoPorRetroceso = estadoActual >= umbralBloqueo && estado.id < estadoActual;
+                const esBloqueadoPorAlmacen = esAlmacen && estado.id !== 9;
+                const esBloqueadoPorPlanta = esPlanta;
+                const esBloqueadoPorGerencia = esGerencia && estado.id !== 3 && estado.id !== 11;
+                const esBloqueadoPorAnulado = estado.id === 11 && !esGerencia && window.tipoUsuario !== 'ADMINISTRADOR';
+                const esBloqueado = esBloqueadoPorRetroceso || esBloqueadoPorAlmacen || esBloqueadoPorPlanta || esBloqueadoPorGerencia || esBloqueadoPorAnulado;
 
                 const ultimoCambio = historial.find(h => h.estadoNuevo === estado.estado);
 
@@ -841,21 +989,28 @@ async function verEstadoOrden(id) {
                 if (isActual) {
                     btnClass = `badge-estado estado-${estado.id} ring-2 ring-gray-400`;
                 } else if (esBloqueado) {
-                    btnClass = 'bg-gray-700 text-gray-300 cursor-not-allowed';
+                    btnClass = 'bg-gray-700 text-gray-300 cursor-not-allowed opacity-50';
                 } else {
                     btnClass = 'bg-gray-700 text-gray-300 hover:bg-gray-600';
                 }
 
-                btn.className = `px-3 py-2 rounded-lg font-semibold text-xs transition-all ${btnClass}`;
+                btn.className = `px-2 py-1 rounded font-semibold transition-all ${btnClass}`;
+                btn.style.fontSize = '10px';
 
                 btn.innerHTML = `
-        <div>${estado.estado}</div>
-        ${ultimoCambio ? `<div class="text-[10px] opacity-75 mt-1">${ultimoCambio.usuario} - ${ultimoCambio.fecha}</div>` : ''}
-    `;
+                    <div>${estado.estado}</div>
+                    ${ultimoCambio ? `<div style="font-size:9px" class="opacity-75">${ultimoCambio.usuario} - ${ultimoCambio.fecha}</div>` : ''}
+                `;
 
                 if (esBloqueado) {
-                    btn.title = 'No se puede retroceder a este estado';
-                    btn.onclick = () => { }; 
+                    btn.title = esBloqueadoPorPlanta
+                        ? 'No tiene permisos para cambiar estados'
+                        : esBloqueadoPorAlmacen
+                            ? 'Solo puede cambiar a Recepción en almacenes'
+                            : esBloqueadoPorGerencia
+                                ? 'Solo puede cambiar a Anulado'
+                                : 'No se puede retroceder a este estado';
+                    btn.onclick = () => { };
                 } else {
                     btn.title = estado.detalle || '';
                     btn.onclick = () => cambiarEstado(id, estado.id);
@@ -883,39 +1038,61 @@ async function cambiarEstado(idOrden, nuevoEstado) {
         return;
     }
 
-    if (nuevoEstado < estadoActual) {
+    if (nuevoEstado < estadoActual && nuevoEstado !== 11) {
         mostrarAlerta('NO SE PUEDE RETROCEDER A UN ESTADO ANTERIOR', 'error');
         return;
     }
 
     const estadoNombre = estadosDisponibles.find(e => e.id === nuevoEstado)?.estado || 'este estado';
 
-    const result = await Swal.fire({
-        title: '¿Cambiar estado de la orden?',
-        html: `¿Está seguro de cambiar el estado a <strong>${estadoNombre}</strong>?`,
-        icon: 'question',
-        showCancelButton: true,
-        confirmButtonColor: '#3085d6',
-        cancelButtonColor: '#6b7280',
-        confirmButtonText: 'Sí, cambiar',
-        cancelButtonText: 'Cancelar',
-        background: '#1f2937',
-        color: '#ffffff'
-    });
+    let observacionAnulado = '';
 
-    if (!result.isConfirmed) {
-        return;
+    if (nuevoEstado === 11) {
+        const result = await Swal.fire({
+            title: '¿Rechazar orden de compra?',
+            input: 'textarea',
+            inputLabel: 'Motivo de rechazo',
+            inputPlaceholder: 'Ingrese el motivo...',
+            inputAttributes: {
+                style: 'background:#374151; color:#fff; border:1px solid #4b5563; border-radius:6px;'
+            },
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, rechazar',
+            cancelButtonText: 'Cancelar',
+            background: '#1f2937',
+            color: '#ffffff'
+        });
+
+        if (!result.isConfirmed) return;
+        observacionAnulado = result.value;
+    } else {
+        const result = await Swal.fire({
+            title: '¿Cambiar estado de la orden?',
+            html: `¿Está seguro de cambiar el estado a <strong>${estadoNombre}</strong>?`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Sí, cambiar',
+            cancelButtonText: 'Cancelar',
+            background: '#1f2937',
+            color: '#ffffff'
+        });
+
+        if (!result.isConfirmed) return;
     }
 
     try {
         const response = await fetch('/Orden/CambiarEstado', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 idOrden: idOrden,
-                nuevoEstado: nuevoEstado
+                nuevoEstado: nuevoEstado,
+                observacion: observacionAnulado || null
             })
         });
 
@@ -961,3 +1138,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 });
+
+function autocompletarNit(razon) {
+    const nits = {
+        'SOALPRO S.R.L.': '1020409021',
+        'CARSA INDUSTRIA Y COMERCIO': '193304025',
+        'TECALIM S.A.': '166320021'
+    };
+    document.getElementById('nit_factura').value = nits[razon] || '';
+}
+
+

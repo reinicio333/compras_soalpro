@@ -73,7 +73,28 @@
         background: #374151; /* Gris oscuro - Recibido */
         color: white;
     }
+
+    .estado-10 {
+        background: #4c1d95; /* Morado - Costeado en SAP */
+        color: white;
+    }
+
+    .estado-11 {
+        background: #991b1b; /* Rojo oscuro - Rechasado */
+        color: white;
+    }
+
+    #body_detalle td {
+        pointer-events: auto !important;
+    }
+
+    .chk-stock {
+        position: relative;
+        z-index: 10;
+        cursor: pointer;
+    }
 </style>
+
 <div class="space-y-6">
     <!-- Header -->
     <div class="bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
@@ -83,8 +104,8 @@
                     <i class="fas fa-file-invoice text-white text-xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-white">Órdenes de Compra</h1>
-                    <p class="text-gray-400 text-sm">Gestión y seguimiento de órdenes de compra</p>
+                    <h1 class="text-2xl font-bold text-white">Ordenes de Compra</h1>
+                    <p class="text-gray-400 text-sm">Gestión y seguimiento de ordenes de compra</p>
                 </div>
             </div>
 
@@ -204,7 +225,7 @@
                 <div class="grid gap-2 mb-3 grid-cols-1 md:grid-cols-2">
                     <div>
                         <label class="block mb-1 text-xs font-medium text-white">
-                            <i class="fas fa-comment mr-1 text-blue-400 text-xs"></i>OBSERVACIÓN:
+                            <i class="fas fa-comment mr-1 text-blue-400 text-xs"></i>OBSERVACION:
                         </label>
                         <input type="text" id="observacion"
                                class="uppercase bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5"
@@ -212,7 +233,7 @@
                     </div>
                     <div>
                         <label class="block mb-1 text-xs font-medium text-white">
-                            <i class="fas fa-money-bill-wave mr-1 text-blue-400 text-xs"></i>FORMA DE PAGO:
+                            <i class="fas fa-money-bill-wave mr-1 text-blue-400 text-xs"></i>METODO DE PAGO:
                         </label>
                         <div class="flex items-center mt-1 space-x-3">
                             <label class="inline-flex items-center">
@@ -229,6 +250,11 @@
                                 <input type="radio" name="forma_pago" value="Cheque"
                                        class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600">
                                 <span class="ml-1 text-xs text-gray-300">Cheque</span>
+                            </label>
+                            <label class="inline-flex items-center">
+                                <input type="radio" name="forma_pago" value="QR"
+                                       class="w-3 h-3 text-blue-600 bg-gray-700 border-gray-600">
+                                <span class="ml-1 text-xs text-gray-300">QR</span>
                             </label>
                         </div>
                     </div>
@@ -337,14 +363,21 @@
                     </h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
                         <div>
-                            <label class="block text-xs text-gray-400 mb-1">Razón Social:</label>
-                            <input type="text" id="razon_social_factura"
-                                   class="uppercase bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                            <label class="block text-xs text-gray-400 mb-1">Razon Social:</label>
+                            <select id="razon_social_factura"
+                                    class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5"
+                                    onchange="autocompletarNit(this.value)">
+                                <option value="">Seleccione...</option>
+                                <option value="SOALPRO S.R.L.">SOALPRO S.R.L.</option>
+                                <option value="CARSA INDUSTRIA Y COMERCIO">CARSA INDUSTRIA Y COMERCIO</option>
+                                <option value="TECALIM S.A.">TECALIM S.A.</option>
+                            </select>
                         </div>
                         <div>
                             <label class="block text-xs text-gray-400 mb-1">NIT:</label>
                             <input type="text" id="nit_factura"
-                                   class="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg block w-full p-1.5">
+                                   class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-1.5 cursor-not-allowed"
+                                   readonly>
                         </div>
                     </div>
                 </div>
@@ -365,9 +398,10 @@
                                     <th class="px-2 py-2">F. ENTREGA</th>
                                     <th class="px-2 py-2">CARACTERÍSTICAS</th>
                                     <th class="px-2 py-2">UNIDAD</th>
-                                    <th class="px-2 py-2">CANTIDAD</th>
+                                    <th class="px-2 py-2 text-center">EN STOCK</th>
                                     <th class="px-2 py-2">ULT. PRECIO</th>
                                     <th class="px-2 py-2">ULT. COMPRA</th>
+                                    <th class="px-2 py-2">CANTIDAD</th>
                                     <th class="px-2 py-2">PRECIO</th>
                                     <th class="px-2 py-2">TOTAL Bs</th>
                                 </tr>
@@ -424,7 +458,7 @@
                         <!-- Se llenará dinámicamente -->
                     </div>
                 </div>
-                <div id="contenedor_estados" class="flex flex-wrap gap-2">
+                <div id="contenedor_estados" class="flex flex-wrap gap-1">
                     <!-- Los estados se cargarán dinámicamente -->
                 </div>
             </div>
@@ -444,6 +478,7 @@
         </div>
     </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community/dist/ag-grid-community.min.noStyle.js"></script>
 
 <script src="~/lib/ag_grid/ag-grid.min.js"></script>
 <script src="~/js/pages/orden.js"></script>

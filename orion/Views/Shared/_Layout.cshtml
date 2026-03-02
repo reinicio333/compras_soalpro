@@ -15,7 +15,7 @@
     <meta name="format-detection" content="telephone=no">
 
     <!-- PAGE TITLE HERE -->
-    <title>SBE</title>
+    <title>Orion</title>
 
     <link rel="shortcut icon" type="image/x-icon" href="~/images/FAVICON.png">
     <!-- FAVICONS ICON -->
@@ -180,7 +180,7 @@
                         </li>
                     }
 
-                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR") || User.IsInRole("ALMACEN"))
+                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR")  || User.IsInRole("PLANTA"))
                     {
                         
                         
@@ -195,7 +195,7 @@
                         </li>
 
                     }
-                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR"))
+                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR") || User.IsInRole("PLANTA") || User.IsInRole("ALMACEN") || User.IsInRole("GERENCIA"))
                     {
 
 
@@ -212,7 +212,7 @@
                         </li>
 
                     }
-                    @if (User.IsInRole("GERENCIA") || User.IsInRole("ADMINISTRADOR"))
+                    @* @if (User.IsInRole("GERENCIA") || User.IsInRole("ADMINISTRADOR"))
                     {
                         <li>
                             <a asp-controller="Orden" asp-action="Gerencia" class="flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group">
@@ -224,7 +224,7 @@
                                 <span class="flex-1 ms-3 leading-tight">ORDEN DE COMPRAS (PRE AUTORIZADOS)</span>
                             </a>
                         </li>
-                    }
+                    } *@
                     
 
                     <li>

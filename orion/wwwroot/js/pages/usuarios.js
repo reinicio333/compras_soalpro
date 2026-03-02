@@ -10,7 +10,9 @@ const gridOptions = {
     columnDefs: [
         { headerName: "ID", field: "id" },
         { headerName: "Nombre", field: "nombre" },
+        { headerName: "Nombre", field: "nomCompleto" },
         { headerName: "Tipo", field: "idTipo" },
+        { headerName: "Área", field: "area", filter: true },
         {
             headerName: "Estado",
             field: "estado",
@@ -205,7 +207,7 @@ function editarUsuario(id) {
             frm.estado.value = res.estado;
             frm.idTipo.value = res.idTipo;
             frm.idUsuario.value = res.idusuario;
-
+            frm.Area.value = res.area || '';
             const targetEl = document.getElementById('modalRegistroUsuario');
             const modal = new Modal(targetEl);
             modal.show();

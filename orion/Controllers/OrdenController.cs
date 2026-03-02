@@ -32,9 +32,68 @@ namespace orion.Controllers
         {
             try
             {
-                var ordenes = await _context.OrdenCompra
+                var nombreUsuario = User.Identity.Name;
+                var usuarioActual = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Nombre == nombreUsuario);
+
+                IQueryable<OrdenCompra> query = _context.OrdenCompra
                     .Include(o => o.Estado)
-                    .Include(o => o.SolicitudPrecio)
+                    .Include(o => o.SolicitudPrecio);
+
+                if (usuarioActual?.IdTipo == "ADMINISTRADOR" ||
+                    usuarioActual?.IdTipo == "ALMACEN" ||
+                    usuarioActual?.IdTipo == "COMPRAS")
+                {
+                    // Ven todas las ordenes, sin filtro
+                }
+                else if (usuarioActual?.IdTipo == "GERENCIA")
+                {
+                    // GERENCIA: ve todas pero solo las que estan en Pre autorización (estado 2)
+                    query = query.Where(o => o.IdEstadoSolicitud == 2);
+                }
+                else if (usuarioActual?.IdTipo == "PLANTA")
+                {
+                    // Solo ven órdenes de su área
+                    var usuariosDelArea = await _context.Usuarios
+                        .Where(u => u.Area == usuarioActual.Area)
+                        .Select(u => u.Nombre)
+                        .ToListAsync();
+
+                    var idSolicitudesDelArea = await _context.Solicitudes
+                        .Where(s => usuariosDelArea.Contains(s.Solicitante))
+                        .Select(s => s.Id)
+                        .ToListAsync();
+
+                    var idSolicitudPrecioDelArea = await _context.DetalleSolicitudes
+                        .Where(d => idSolicitudesDelArea.Contains(d.IdSolicitud))
+                        .Join(_context.SolicitudPrecio,
+                            d => d.Id.ToString(),
+                            sp => sp.IdDetalleSolicitud,
+                            (d, sp) => sp.IdSolicitudPrecio)
+                        .Distinct()
+                        .ToListAsync();
+
+                    query = query.Where(o => idSolicitudPrecioDelArea.Contains(o.IdSolicitudPrecio));
+                }
+                else
+                {
+                    // COMPRAS u otros: solo ven las de su área
+                    if (string.IsNullOrEmpty(usuarioActual?.Area))
+                    {
+                        query = query.Where(o => o.Solicitante == nombreUsuario);
+                    }
+                    else
+                    {
+                        var usuariosDelArea = await _context.Usuarios
+                            .Where(u => u.Area == usuarioActual.Area)
+                            .Select(u => u.Nombre)
+                            .ToListAsync();
+
+                        query = query.Where(o => usuariosDelArea.Contains(o.Solicitante));
+                    }
+                }
+
+                var ordenes = await query
                     .OrderByDescending(o => o.Id)
                     .Select(o => new
                     {
@@ -44,16 +103,60 @@ namespace orion.Controllers
                         o.Solicitante,
                         Estado = o.Estado != null ? o.Estado.Estado : "Sin Estado",
                         o.EsImportacion,
-                        IdEstado = o.IdEstadoSolicitud
+                        IdEstado = o.IdEstadoSolicitud,
+                        FechaEstado = _context.HistorialEstadoOrden
+                            .Where(h => h.IdOrden == o.Id)
+                            .OrderByDescending(h => h.FechaCambio)
+                            .Select(h => h.FechaCambio)
+                            .FirstOrDefault(),
+                        TodosEnStock = _context.SolicitudPrecio
+                            .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                            .All(sp => sp.EsStock == true),
+                        Proveedor = _context.SolicitudPrecio
+                            .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                            .Join(_context.DetalleSolicitudes,
+                                sp => sp.IdDetalleSolicitud,
+                                ds => ds.Id.ToString(),
+                                (sp, ds) => ds.Proveedor)
+                            .FirstOrDefault()
                     })
                     .ToListAsync();
 
-                return Json(ordenes);
+                var ordenesFiltradas = ordenes
+                    .Where(o => !o.TodosEnStock)
+                    .Select(o => new
+                    {
+                        o.Id,
+                        o.Fecha,
+                        o.Referencia,
+                        o.Solicitante,
+                        o.Estado,
+                        o.EsImportacion,
+                        o.IdEstado,
+                        o.FechaEstado,
+                        o.Proveedor
+                    });
+
+                return Json(ordenesFiltradas);
             }
             catch (Exception ex)
             {
                 return Json(new { tipo = "error", mensaje = "Error al cargar órdenes: " + ex.Message });
             }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetTipoUsuario()
+        {
+            var nombreUsuario = User.Identity.Name;
+            var usuario = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.Nombre == nombreUsuario);
+
+            return Json(new
+            {
+                tipo = usuario?.IdTipo ?? "",
+                area = usuario?.Area ?? ""
+            });
         }
 
         [HttpGet]
@@ -128,7 +231,9 @@ namespace orion.Controllers
                     {
                         IdSolicitudPrecio = nuevoIdSolicitudPrecio,
                         IdDetalleSolicitud = producto.IdDetalleSolicitud.ToString(),
-                        Precio = producto.Precio
+                        Precio = producto.Precio,
+                        Cantidad = producto.Cantidad,
+                        EsStock = producto.EsStock
                     };
                     _context.SolicitudPrecio.Add(solicitudPrecio);
 
@@ -136,7 +241,7 @@ namespace orion.Controllers
                         .FindAsync(producto.IdDetalleSolicitud);
                     if (detalleProducto != null)
                     {
-                        detalleProducto.Estado = "Pendiente";
+                        detalleProducto.Estado = producto.EsStock ? "En Stock" : "Pendiente";
                     }
                 }
 
@@ -193,12 +298,14 @@ namespace orion.Controllers
                                            Descripcion = ds.Descripcion,
                                            Caracteristicas = ds.Caracteristicas,
                                            Unidad = ds.Unidad,
-                                           Cantidad = ds.Cantidad,
+                                           CantidadSolicitada = ds.Cantidad,
+                                           Cantidad = sp.Cantidad ?? ds.Cantidad, 
                                            Precio = sp.Precio,
                                            IdSolicitud = ds.IdSolicitud,
                                            Proveedor = ds.Proveedor,
-                                           UltimoPrecio = ds.UltimoPrecio,   
-                                           FultimoPrecio = ds.FultimoPrecio
+                                           UltimoPrecio = ds.UltimoPrecio,
+                                           FultimoPrecio = ds.FultimoPrecio,
+                                           EsStock = sp.EsStock ?? false
                                        }).ToListAsync();
 
                 if (productos.Any())
@@ -326,7 +433,9 @@ namespace orion.Controllers
                     {
                         IdSolicitudPrecio = idSolicitudPrecioActual,
                         IdDetalleSolicitud = producto.IdDetalleSolicitud.ToString(),
-                        Precio = producto.Precio
+                        Precio = producto.Precio,
+                        Cantidad = producto.Cantidad,
+                        EsStock = producto.EsStock
                     };
                     _context.SolicitudPrecio.Add(solicitudPrecio);
 
@@ -334,7 +443,7 @@ namespace orion.Controllers
                         .FindAsync(producto.IdDetalleSolicitud);
                     if (detalleProducto != null)
                     {
-                        detalleProducto.Estado = "Pendiente";
+                        detalleProducto.Estado = producto.EsStock ? "En Stock" : "Pendiente";
                     }
                 }
 
@@ -410,13 +519,48 @@ namespace orion.Controllers
                 var orden = await _context.OrdenCompra.FindAsync(datos.IdOrden);
 
                 if (orden == null)
-                {
                     return Json(new { tipo = "error", mensaje = "Orden no encontrada" });
-                }
 
                 var estadoAnterior = orden.IdEstadoSolicitud;
-
                 orden.IdEstadoSolicitud = datos.NuevoEstado;
+
+                // Si se anula, guardar observación
+                if (datos.NuevoEstado == 11 && !string.IsNullOrEmpty(datos.Observacion))
+                {
+                    orden.Observacion = datos.Observacion;
+                }
+
+                if ((datos.NuevoEstado >= 3 && estadoAnterior < 3 && orden.IdSolicitudPrecio.HasValue)
+                    || datos.NuevoEstado == 11)
+                {
+                    var solicitudesPrecio = await _context.SolicitudPrecio
+                        .Where(sp => sp.IdSolicitudPrecio == orden.IdSolicitudPrecio)
+                        .ToListAsync();
+
+                    foreach (var sp in solicitudesPrecio)
+                    {
+                        if (int.TryParse(sp.IdDetalleSolicitud, out var idDetalle))
+                        {
+                            var detalle = await _context.DetalleSolicitudes.FindAsync(idDetalle);
+                            if (detalle != null)
+                            {
+                                if (datos.NuevoEstado == 11)
+                                {
+                                    detalle.Estado = "Rechazado";
+                                }
+                                else if (sp.EsStock == true)
+                                {
+                                    detalle.Estado = "En Stock";
+                                }
+                                else
+                                {
+                                    detalle.Estado = "Aprobado";
+                                    detalle.Faprobado = DateTime.Now;
+                                }
+                            }
+                        }
+                    }
+                }
 
                 var historial = new HistorialEstadoOrden
                 {
@@ -572,9 +716,10 @@ namespace orion.Controllers
         private async Task<OrdenCompraDto> ConvertirOrdenADto(OrdenCompra orden)
         {
             var idSolicitudPrecio = orden.IdSolicitudPrecio ?? 0;
-
             var proveedor = "";
             var productosLista = new List<ProductoOrdenDto>();
+            var solicitantesTexto = "";
+            var solicitantesTextoAutor = "";
 
             if (idSolicitudPrecio > 0)
             {
@@ -585,7 +730,9 @@ namespace orion.Controllers
                                        select new
                                        {
                                            Detalle = ds,
-                                           Precio = sp.Precio
+                                           Precio = sp.Precio,
+                                           Cantidad = sp.Cantidad ?? ds.Cantidad,
+                                           EsStock = sp.EsStock ?? false
                                        }).ToListAsync();
 
                 if (productos.Any())
@@ -593,8 +740,30 @@ namespace orion.Controllers
                     proveedor = productos.First().Detalle.Proveedor ?? "";
                 }
 
+                // Obtener todos los solicitantes únicos
+                // Solo productos que NO son stock
+                var productosNoStock = productos.Where(p => !p.EsStock).ToList();
+
+                // Obtener solicitantes únicos solo de productos no stock
+                var idSolicitudes = productosNoStock.Select(p => p.Detalle.IdSolicitud).Distinct().ToList();
+                var solicitantesNombres = await _context.Solicitudes
+                    .Where(s => idSolicitudes.Contains(s.Id))
+                    .Select(s => s.Solicitante)
+                    .Distinct()
+                    .ToListAsync();
+
+                var solicitantesConNombre = await _context.Usuarios
+                    .Where(u => solicitantesNombres.Contains(u.Nombre))
+                    .Select(u => (u.NomCompleto != null && u.NomCompleto != "")
+                        ? u.Nombre + " - " + u.NomCompleto
+                        : u.Nombre)
+                    .ToListAsync();
+
+                solicitantesTexto = string.Join(", ", solicitantesConNombre.Where(s => !string.IsNullOrEmpty(s)));
+                solicitantesTextoAutor = string.Join("\n", solicitantesConNombre.Where(s => !string.IsNullOrEmpty(s)));
+
                 var index = 1;
-                foreach (var producto in productos)
+                foreach (var producto in productos.Where(p => !p.EsStock))
                 {
                     var solicitudProducto = await _context.Solicitudes
                         .FirstOrDefaultAsync(s => s.Id == producto.Detalle.IdSolicitud);
@@ -607,7 +776,7 @@ namespace orion.Controllers
                         FechaEntrega = solicitudProducto?.Frequerimiento?.ToString("dd/MM/yyyy") ?? "",
                         Caracteristicas = producto.Detalle.Caracteristicas,
                         Unidad = producto.Detalle.Unidad,
-                        Cantidad = producto.Detalle.Cantidad,
+                        Cantidad = producto.Cantidad,
                         Precio = producto.Precio,
                         UltimoPrecio = producto.Detalle.UltimoPrecio,
                         FultimoPrecio = producto.Detalle.FultimoPrecio
@@ -615,16 +784,50 @@ namespace orion.Controllers
                     index++;
                 }
             }
+            // Obtener usuario que creó la orden
+            var usuarioOrden = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.Nombre == orden.Solicitante);
+            var elaboradoPor = usuarioOrden?.NomCompleto != null && usuarioOrden.NomCompleto != ""
+                ? usuarioOrden.Nombre + " - " + usuarioOrden.NomCompleto
+                : orden.Solicitante ?? "";
+            // Obtener usuario que cambió al estado 3 (Aprobación OC)
+            var historialAprobacion = await _context.HistorialEstadoOrden
+                .FirstOrDefaultAsync(h => h.IdOrden == orden.Id && h.IdEstadoNuevo == 3);
 
+            var autorizadoPor = "";
+            if (historialAprobacion != null)
+            {
+                var usuarioAutorizo = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Nombre == historialAprobacion.Usuario);
+                autorizadoPor = usuarioAutorizo?.NomCompleto != null && usuarioAutorizo.NomCompleto != ""
+                    ? usuarioAutorizo.Nombre + " - " + usuarioAutorizo.NomCompleto
+                    : historialAprobacion.Usuario ?? "";
+            }
+            // Revisado Por (estado 2 - Pre-autorizado)
+            var historialRevision = await _context.HistorialEstadoOrden
+                .FirstOrDefaultAsync(h => h.IdOrden == orden.Id && h.IdEstadoNuevo == 2);
+
+            var revisadoPor = "";
+            if (historialRevision != null)
+            {
+                var usuarioReviso = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Nombre == historialRevision.Usuario);
+                revisadoPor = usuarioReviso?.NomCompleto != null && usuarioReviso.NomCompleto != ""
+                    ? usuarioReviso.Nombre + " - " + usuarioReviso.NomCompleto
+                    : historialRevision.Usuario ?? "";
+            }
             return new OrdenCompraDto
             {
-                IdSolicitud = 0, 
+                IdSolicitud = 0,
                 Fecha = orden.Fecha?.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy"),
                 Proveedor = proveedor,
                 Telefono = orden.Telefono ?? "",
                 Contacto = orden.NomContacto ?? "",
                 NomContacto = orden.NomContacto ?? "",
-                Solicitante = orden.Solicitante,
+                Solicitante = solicitantesTexto,
+                ElaboradoPor = !string.IsNullOrEmpty(solicitantesTextoAutor) ? solicitantesTextoAutor : elaboradoPor,
+                AutorizadoPor = autorizadoPor,
+                RevisadoPor = revisadoPor,
                 Rol = "",
                 Referencia = orden.Referencia,
                 Tc = orden.TipoCambio ?? "6.96",
@@ -657,7 +860,8 @@ namespace orion.Controllers
                     Razon = orden.RazonSocial,
                     Nit = orden.Nit
                 },
-                Productos = productosLista
+                Productos = productosLista,
+                Id = orden.Id
             };
         }
         [HttpGet]
@@ -844,6 +1048,7 @@ namespace orion.Controllers
 
     public class OrdenCompraDto
     {
+        public int Id { get; set; }
         public int IdOrden { get; set; }
         public int IdSolicitud { get; set; }
         public string Fecha { get; set; }
@@ -856,6 +1061,9 @@ namespace orion.Controllers
         public string Tc { get; set; } = "6.96";
         public bool EsImportacion { get; set; }
         public string NomContacto { get; set; }
+        public string ElaboradoPor { get; set; }
+        public string AutorizadoPor { get; set; }
+        public string RevisadoPor { get; set; }
         public CabeceraDto Cabecera { get; set; }
         public EntregaDto Entrega { get; set; }
         public PagoDto Pago { get; set; }
@@ -907,14 +1115,18 @@ namespace orion.Controllers
         public string Unidad { get; set; }
         public decimal Cantidad { get; set; }
         public decimal Precio { get; set; }
+
+        public decimal CantidadSolicitada { get; set; }
         public decimal? UltimoPrecio { get; set; } 
         public DateTime? FultimoPrecio { get; set; }
+        public bool EsStock { get; set; }
     }
 
     public class CambioEstadoDto
     {
         public int IdOrden { get; set; }
         public int NuevoEstado { get; set; }
+        public string? Observacion { get; set; }
     }
 
     public class GenerarPdfDto

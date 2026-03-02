@@ -38,6 +38,8 @@ const gridOptions = {
         { headerName: "Referencia", field: "referencia" },
         { headerName: "Solicitante", field: "solicitante" },
         {
+            filter: false,
+            floatingFilter: false,
             headerName: "Acciones",
             field: "acciones",
             width: 280,
@@ -77,7 +79,8 @@ const gridOptions = {
         filter: true,
         sortable: true,
         resizable: true,
-        minWidth: 100
+        minWidth: 100,
+        floatingFilter: true
     },
     pagination: true,
     paginationPageSize: 10,
@@ -669,7 +672,7 @@ function editarSolicitud(id) {
             const fecha = new Date(data.solicitud.fecha);
             frm.fecha.value = fecha.toISOString().split('T')[0];
 
-            const tieneProductosEnUso = data.detalles.some(d => d.estado === "Pendiente");
+            const tieneProductosEnUso = data.detalles.some(d => d.estado !== "Creado");
 
             const freq = data.solicitud.frequerimiento
                 ? new Date(data.solicitud.frequerimiento)
@@ -695,7 +698,7 @@ function editarSolicitud(id) {
 
             data.detalles.forEach(detalle => {
                 contadorProductos++;
-                const esPendiente = detalle.estado === "Pendiente";
+                const esPendiente = detalle.estado !== "Creado";
                 const esManual = detalle.codigo === 'MANUAL';
                 const disabledClass = esPendiente ? 'pointer-events-none opacity-60' : '';
                 const readonlyAttr = esPendiente ? 'disabled' : '';
@@ -703,7 +706,7 @@ function editarSolicitud(id) {
 
                 const productoHTML = `
                 <div class="producto-item bg-gray-700 rounded-lg p-3 border ${esPendiente ? 'border-orange-500' : esManual ? 'border-purple-600' : 'border-gray-600'}" data-index="${contadorProductos}" ${esManual ? 'data-manual="true"' : ''}>
-                    ${esPendiente ? `<div class="mb-2 text-xs text-orange-400 font-semibold"><i class="fas fa-lock mr-1"></i>Producto en uso en Orden de Compra ${detalle.numeroOrden ? '#' + detalle.numeroOrden : ''}</div>` : ''}
+                    ${esPendiente ? `<div class="mb-2 text-xs text-orange-400 font-semibold"><i class="fas fa-lock mr-1"></i>${detalle.estado} - Orden de Compra ${detalle.numeroOrden ? '#' + detalle.numeroOrden : ''}</div>` : ''}
                     <div class="grid grid-cols-12 gap-2 items-center">
 
                         <!-- # -->
@@ -840,10 +843,10 @@ function editarSolicitud(id) {
 
                 productosContainer.insertAdjacentHTML('beforeend', productoHTML);
 
-                if (esPendiente) {
+                if (esManual) {
+                    // No inicializar selectize para productos manuales (sea pendiente o no)
+                } else if (esPendiente) {
                     initializeSelectizeForProductEditReadonly(contadorProductos, detalle);
-                } else if (esManual) {
-                    // No inicializar selectize para productos manuales
                 } else {
                     initializeSelectizeForProductEdit(contadorProductos, detalle);
                 }
@@ -942,6 +945,8 @@ async function verificarYEliminar(id) {
     }
 }
 function initializeSelectizeForProductEditReadonly(index, detalle) {
+
+    if (detalle.codigo === 'MANUAL') return;
     const selectProducto = $(`.select-producto-${index}`).selectize({
         valueField: 'codItem',
         labelField: 'text',

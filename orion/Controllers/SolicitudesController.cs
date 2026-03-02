@@ -26,10 +26,31 @@ namespace orion.Controllers
         {
             try
             {
-                var solicitante = User.Identity.Name;
-                var solicitudes = await _context.Solicitudes
-                    .Where(s => s.Solicitante == solicitante)
-                    .ToListAsync();
+                var nombreUsuario = User.Identity.Name;
+                var usuarioActual = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Nombre == nombreUsuario);
+
+                IQueryable<Solicitudes> query = _context.Solicitudes;
+
+                // ADMINISTRADOR Y COMPRAS VEN TODAS LAS SOLICITUDES 
+                if (usuarioActual?.IdTipo != "ADMINISTRADOR" && usuarioActual?.IdTipo != "COMPRAS")
+                {
+                    if (string.IsNullOrEmpty(usuarioActual?.Area))
+                    {
+                        query = query.Where(s => s.Solicitante == nombreUsuario);
+                    }
+                    else
+                    {
+                        var usuariosDelArea = await _context.Usuarios
+                            .Where(u => u.Area == usuarioActual.Area)
+                            .Select(u => u.Nombre)
+                            .ToListAsync();
+
+                        query = query.Where(s => usuariosDelArea.Contains(s.Solicitante));
+                    }
+                }
+
+                var solicitudes = await query.ToListAsync();
                 return Json(solicitudes);
             }
             catch (Exception ex)
@@ -162,7 +183,7 @@ namespace orion.Controllers
 
                 // Solo permitir cambiar frequerimiento si NO hay productos en Pendiente
                 var tieneProductosEnUso = await _context.DetalleSolicitudes
-                    .AnyAsync(d => d.IdSolicitud == idSolicitud && d.Estado == "Pendiente");
+                .AnyAsync(d => d.IdSolicitud == idSolicitud && d.Estado != "Creado");
 
                 if (tieneProductosEnUso)
                 {
@@ -180,13 +201,13 @@ namespace orion.Controllers
 
                 // Obtener productos que están en "Pendiente" (NO se pueden modificar NI eliminar)
                 var productosEnPendiente = await _context.DetalleSolicitudes
-                    .Where(d => d.IdSolicitud == idSolicitud && d.Estado == "Pendiente")
-                    .ToListAsync();
+                .Where(d => d.IdSolicitud == idSolicitud && d.Estado != "Creado")
+                .ToListAsync();
 
                 // Obtener productos que están en "Creado" (se pueden eliminar)
                 var productosCreados = await _context.DetalleSolicitudes
-                    .Where(d => d.IdSolicitud == idSolicitud && d.Estado == "Creado")
-                    .ToListAsync();
+                .Where(d => d.IdSolicitud == idSolicitud && d.Estado == "Creado")
+                .ToListAsync();
 
                 // Solo eliminar productos en estado "Creado"
                 _context.DetalleSolicitudes.RemoveRange(productosCreados);
@@ -255,7 +276,7 @@ namespace orion.Controllers
             try
             {
                 var productosEnUso = await _context.DetalleSolicitudes
-                    .Where(d => d.IdSolicitud == id && d.Estado == "Pendiente")
+                    .Where(d => d.IdSolicitud == id && d.Estado != "Creado")
                     .CountAsync();
 
                 if (productosEnUso > 0)
@@ -296,8 +317,8 @@ namespace orion.Controllers
             try
             {
                 var productosEnUso = await _context.DetalleSolicitudes
-                    .Where(d => d.IdSolicitud == id && d.Estado == "Pendiente")
-                    .CountAsync();
+                .Where(d => d.IdSolicitud == id && d.Estado != "Creado")
+                .CountAsync();
 
                 return Json(new
                 {

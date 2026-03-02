@@ -4,6 +4,7 @@ using QuestPDF.Infrastructure;
 using orion.Models;
 using orion.Controllers;
 using NPOI.SS.Formula.Functions;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace orion.Servicios
 {
@@ -30,7 +31,7 @@ namespace orion.Servicios
                         column.Spacing(10); 
                     });
 
-                    page.Footer().AlignBottom().Element(content => ComposeFooter(content));
+                    page.Footer().AlignBottom().Element(content => ComposeFooter(content, datos));
                 });
             });
 
@@ -39,7 +40,40 @@ namespace orion.Servicios
 
         void ComposeHeader(IContainer container, Solicitudes solicitud, OrdenCompraDto datos)
         {
-            var logoBytes = CargarImagen("images/soalpro.png");
+            var razon = datos.Facturacion?.Razon?.ToUpper() ?? "";
+
+            string logoFile;
+            string logoColor;
+            string logoFondo;
+            string logoLetra;
+
+            if (razon.Contains("CARSA"))
+            {
+                logoFile = "images/carsa.png";
+                logoColor = "#24346c"; // azul oscuro océano
+                logoFondo = "#24346c";
+                logoLetra = "#ffffff";
+
+            }
+            else if (razon.Contains("TECALIM"))
+            {
+                logoFile = "images/tecalim.png";
+                logoColor = "#2d7a2d";
+                logoFondo = "#ffffff";
+                logoLetra = "#ffffff";
+
+            }
+            else
+            {
+                logoFile = "images/soalpro.png";
+                logoColor = "#ffcccc"; // rojo soalpro
+                logoFondo = "#e20d16";
+                logoLetra = "#000000";
+
+
+            }
+
+            var logoBytes = CargarImagen(logoFile);
 
             container.Column(column =>
             {
@@ -49,7 +83,7 @@ namespace orion.Servicios
                     if (logoBytes != null)
                     {
                         row.ConstantItem(180).Border(1).BorderColor(Colors.Black)
-                            .Background("#e20d16")
+                            .Background(logoFondo)
                             .AlignCenter().AlignMiddle()
                             .Height(26).Image(logoBytes, ImageScaling.FitArea);
                     }
@@ -74,16 +108,16 @@ namespace orion.Servicios
                     row.AutoItem().AlignBottom().PaddingRight(10).Text("NÚMERO ")
                         .FontSize(9).FontFamily("Cambria");
 
-                    row.AutoItem().Border(1).PaddingHorizontal(35).PaddingVertical(2).AlignMiddle().Text($"{solicitud.Id}/2026")
+                    row.AutoItem().Border(1).PaddingHorizontal(35).PaddingVertical(2).AlignMiddle().Text($"{datos.Id}/2026")
                         .FontSize(9).FontFamily("Cambria");
                 });
 
 
 
                 // Título
-                column.Item().Background("#ffcccc").Padding(1)
+                column.Item().Background(logoColor).Padding(1)
                     .AlignCenter().Text("ORDEN DE COMPRA").FontFamily("Cambria")
-                    .FontSize(9);    
+                    .FontSize(9).FontColor(logoLetra);    
 
                 column.Item().PaddingTop(5);
 
@@ -119,8 +153,8 @@ namespace orion.Servicios
                     table.Cell().PaddingBottom(5).PaddingRight(6).AlignMiddle()
                         .Text("SOLICITANTE").FontFamily("Cambria").FontSize(8);
                     table.Cell().PaddingBottom(5).Border(1).PaddingVertical(2).PaddingHorizontal(10).AlignCenter()
-                        .AlignMiddle().Text(datos.Solicitante ?? "").FontFamily("Cambria").FontSize(8);
-
+                        .AlignMiddle().Text(datos.Solicitante ?? "").FontFamily("Cambria").FontSize(8).WrapAnywhere();
+    
                     // Fila 3
                     table.Cell().PaddingBottom(5).PaddingRight(6).AlignMiddle()
                         .Text("TELEF./FAX PROVEEDOR").FontFamily("Cambria").FontSize(8);
@@ -274,41 +308,40 @@ namespace orion.Servicios
                     {
                         leftCol.Item().Row(r =>
                         {
-                            r.AutoItem().AlignMiddle().PaddingRight(6)
-                                .Text("FORMA DE PAGO:").FontSize(8).FontFamily("Cambria");
+                            r.AutoItem().AlignMiddle().PaddingRight(4)
+                                .Text("FORMA DE PAGO:").FontSize(7).FontFamily("Cambria");
 
                             // EFECTIVO
-                            r.ConstantItem(36).Height(14).PaddingRight(5)
-                                .Background("#ffff00")
-                                .Border(1).BorderColor(Colors.Black)
+                            r.ConstantItem(20).Height(14).PaddingRight(3)
+                                .Background("#ffff00").Border(1).BorderColor(Colors.Black)
                                 .AlignCenter().AlignMiddle()
-                                .Text(datos.Cabecera?.FormaPago == "Efectivo" ? "X" : "")
-                                .FontSize(9);
-
-                            r.AutoItem().PaddingRight(10).AlignMiddle()
-                                .Text("EFECTIVO").FontSize(8).FontFamily("Cambria");
+                                .Text(datos.Cabecera?.FormaPago == "Efectivo" ? "X" : "").FontSize(9);
+                            r.AutoItem().PaddingRight(4).AlignMiddle()
+                                .Text("EFECTIVO").FontSize(7).FontFamily("Cambria");
 
                             // TRANSFERENCIA
-                            r.ConstantItem(36).Height(14).PaddingRight(5)
-                                .Background("#ffff00")
-                                .Border(1).BorderColor(Colors.Black)
+                            r.ConstantItem(20).Height(14).PaddingRight(3)
+                                .Background("#ffff00").Border(1).BorderColor(Colors.Black)
                                 .AlignCenter().AlignMiddle()
-                                .Text(datos.Cabecera?.FormaPago == "Transferencia" ? "X" : "")
-                                .FontSize(9);
-
-                            r.AutoItem().PaddingRight(10).AlignMiddle()
-                                .Text("TRANSFERENCIA").FontSize(8).FontFamily("Cambria");
+                                .Text(datos.Cabecera?.FormaPago == "Transferencia" ? "X" : "").FontSize(9);
+                            r.AutoItem().PaddingRight(4).AlignMiddle()
+                                .Text("TRANSFERENCIA").FontSize(7).FontFamily("Cambria");
 
                             // CHEQUE
-                            r.ConstantItem(36).Height(14).PaddingRight(5)
-                                .Background("#ffff00")
-                                .Border(1).BorderColor(Colors.Black)
+                            r.ConstantItem(20).Height(14).PaddingRight(3)
+                                .Background("#ffff00").Border(1).BorderColor(Colors.Black)
                                 .AlignCenter().AlignMiddle()
-                                .Text(datos.Cabecera?.FormaPago == "Cheque" ? "X" : "")
-                                .FontSize(9);
+                                .Text(datos.Cabecera?.FormaPago == "Cheque" ? "X" : "").FontSize(9);
+                            r.AutoItem().PaddingRight(4).AlignMiddle()
+                                .Text("CHEQUE").FontSize(7).FontFamily("Cambria");
 
+                            // QR
+                            r.ConstantItem(20).Height(14).PaddingRight(3)
+                                .Background("#ffff00").Border(1).BorderColor(Colors.Black)
+                                .AlignCenter().AlignMiddle()
+                                .Text(datos.Cabecera?.FormaPago == "QR" ? "X" : "").FontSize(9);
                             r.AutoItem().AlignMiddle()
-                                .Text("CHEQUE").FontSize(8).FontFamily("Cambria");
+                                .Text("QR").FontSize(7).FontFamily("Cambria");
                         });
 
 
@@ -439,7 +472,7 @@ namespace orion.Servicios
                 column.Item().PaddingTop(5);
 
                 // Facturación
-                column.Item().Background("#c4d79b").Padding(3)
+                column.Item().Background("#e0e0e0").Padding(2)
                     .AlignCenter().Text("FACTURACIÓN").FontFamily("Cambria")
                     .FontSize(9);
                 
@@ -492,45 +525,49 @@ namespace orion.Servicios
             
         }
 
-        void ComposeFooter(IContainer container)
+        void ComposeFooter(IContainer container, OrdenCompraDto datos)
         {
             container.Row(row =>
             {
                 row.RelativeItem().Column(col =>
                 {
-                    // Cuadro centrado
                     col.Item().AlignCenter().Element(e =>
                     {
-                        e.Width(200)
-                         .Height(60)
-                         .Border(1)
-                         .BorderColor(Colors.Black);
+                        e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
+                         .AlignCenter().AlignMiddle()
+                         .Text(datos.ElaboradoPor ?? "").FontSize(8).FontFamily("Cambria");
                     });
-
                     col.Item().Height(5);
-
-                    
-
                     col.Item().AlignCenter()
                         .Text("ELABORADO POR").FontSize(9).FontFamily("Cambria");
                 });
 
-                row.ConstantItem(50);
+                row.ConstantItem(30);
 
                 row.RelativeItem().Column(col =>
                 {
-                    // Cuadro centrado
                     col.Item().AlignCenter().Element(e =>
                     {
-                        e.Width(200)
-                         .Height(60)
-                         .Border(1)
-                         .BorderColor(Colors.Black);
+                        e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
+                         .AlignCenter().AlignMiddle()
+                         .Text(datos.RevisadoPor ?? "").FontSize(8).FontFamily("Cambria");
                     });
-
                     col.Item().Height(5);
+                    col.Item().AlignCenter()
+                        .Text("REVISADO POR").FontSize(9).FontFamily("Cambria");
+                });
 
-                    
+                row.ConstantItem(30);
+
+                row.RelativeItem().Column(col =>
+                {
+                    col.Item().AlignCenter().Element(e =>
+                    {
+                        e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
+                         .AlignCenter().AlignMiddle()
+                         .Text(datos.AutorizadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                    });
+                    col.Item().Height(5);
                     col.Item().AlignCenter()
                         .Text("AUTORIZADO POR").FontSize(9).FontFamily("Cambria");
                 });

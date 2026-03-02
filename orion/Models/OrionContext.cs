@@ -69,6 +69,10 @@
                     .HasMaxLength(350)
                     .IsUnicode(false)
                     .HasColumnName("nom_completo");
+                entity.Property(e => e.Area)
+                    .HasMaxLength(50)
+                    .IsUnicode(false)
+                    .HasColumnName("area");
             });
        
         // Configuración para Solicitudes
@@ -340,6 +344,11 @@
             entity.Property(e => e.Precio)
                 .HasColumnType("decimal(20,4)")
                 .HasColumnName("precio");
+            entity.Property(e => e.Cantidad)
+                .HasColumnType("decimal(20,4)")
+                .HasColumnName("cantidad");
+            entity.Property(e => e.EsStock)
+                .HasColumnName("es_stock");
         });
 
         // Configuración para DetalleSolicitudPrecio

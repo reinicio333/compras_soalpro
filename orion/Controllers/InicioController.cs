@@ -56,9 +56,9 @@ namespace orion.Controllers
                 // REEMPLAZA el RedirectToAction por esto:
                 return usuario_encontrado.IdTipo switch
                 {
-                    "GERENCIA" => RedirectToAction("Gerencia", "Orden"),
+                    "GERENCIA" => RedirectToAction("Index", "Orden"),
                     "COMPRAS" => RedirectToAction("Index", "Orden"),
-                    "ALMACEN" => RedirectToAction("Index", "Solicitudes"),
+                    "ALMACEN" => RedirectToAction("Index", "Orden"),
                     "ADMINISTRADOR" => RedirectToAction("Index", "Solicitudes"),
                     _ => RedirectToAction("Index", "Solicitudes")
                 };
