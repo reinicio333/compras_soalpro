@@ -57,6 +57,7 @@ namespace orion.Controllers
                 return usuario_encontrado.IdTipo switch
                 {
                     "GERENCIA" => RedirectToAction("Index", "Orden"),
+                    "CONTABILIDAD" => RedirectToAction("Index", "TipoCambio"),
                     "COMPRAS" => RedirectToAction("Index", "Orden"),
                     "ALMACEN" => RedirectToAction("Index", "Orden"),
                     "ADMINISTRADOR" => RedirectToAction("Index", "Solicitudes"),
