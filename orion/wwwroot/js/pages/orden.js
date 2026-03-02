@@ -287,6 +287,21 @@ async function cargarEstados() {
     }
 }
 
+function seleccionarAprobadorPorDefecto() {
+    const selectAprobador = document.getElementById('aprobador_orden');
+
+    if (!selectAprobador) return;
+
+    const opcionDefault = Array.from(selectAprobador.options).find(option => {
+        const nombre = (option.textContent || '').toLowerCase();
+        return nombre.includes('gcardenas') && option.value;
+    });
+
+    if (opcionDefault) {
+        selectAprobador.value = opcionDefault.value;
+    }
+}
+
 async function cargarAprobadores() {
     try {
         const response = await fetch('/Orden/GetAprobadores');
@@ -305,6 +320,8 @@ async function cargarAprobadores() {
                 selectAprobador.appendChild(option);
             });
         }
+
+        seleccionarAprobadorPorDefecto();
     } catch (error) {
         console.error('Error al cargar aprobadores:', error);
     }
@@ -328,6 +345,7 @@ function abrirModalNuevaOrden() {
     const fechaLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     document.getElementById('fecha_orden').value = fechaLocal;
     actualizarTipoCambioPorFecha(fechaLocal);
+    seleccionarAprobadorPorDefecto();
 
     const modal = new Modal(document.getElementById('modalOrden'));
     modal.show();
