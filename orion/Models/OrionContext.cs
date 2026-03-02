@@ -328,6 +328,10 @@
                 .IsUnicode(false)
                 .HasColumnName("corresponde_asc");
 
+            entity.Property(e => e.RutasArchivos)
+                .HasColumnType("nvarchar(max)")
+                .HasColumnName("rutas_archivos");
+
             // Relaciones
             entity.HasOne(e => e.SolicitudPrecio)
                 .WithMany(s => s.OrdenesCompra)
@@ -485,7 +489,6 @@
                 .IsUnicode(false)
                 .HasColumnName("estado");
         });
-     
 
         OnModelCreatingPartial(modelBuilder);
         }
