@@ -36,6 +36,7 @@ namespace orion.Models
         public string? Aprobador { get; set; }
         public int? IdAreaCorrespondencia { get; set; }
         public string? CorrespondeAsc { get; set; }
+        public string? RutasArchivos { get; set; }
 
         // Propiedades de navegación
         public virtual SolicitudPrecio? SolicitudPrecio { get; set; }
