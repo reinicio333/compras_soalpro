@@ -296,8 +296,7 @@ function seleccionarAprobadorPorDefecto() {
         const nombre = (option.textContent || '').toLowerCase().trim();
         return option.value && (
             nombre.includes('gcardenas') ||
-            nombre.includes('gerardo cardenas') ||
-            (nombre.includes('gerardo') && nombre.includes('cardenas'))
+            nombre.includes('gerardo cardenas')
         );
     });
 
