@@ -10,6 +10,7 @@ namespace orion.Controllers
     public class OrdenController : Controller
     {
         private readonly OrionContext _context;
+        private const decimal TipoCambioPorDefecto = 6.96m;
 
         public OrdenController(OrionContext context)
         {
@@ -224,7 +225,7 @@ namespace orion.Controllers
                     Fecha = DateTime.TryParse(datos.Fecha, out var fecha) ? fecha : DateTime.Now,
                     IdSolicitudPrecio = nuevoIdSolicitudPrecio,
                     IdEstadoSolicitud = 1,
-                    TipoCambio = datos.Tc,
+                    TipoCambio = await ObtenerTipoCambioTextoPorFechaAsync(DateTime.TryParse(datos.Fecha, out var fechaTcGuardar) ? fechaTcGuardar : DateTime.Now),
                     Solicitante = datos.Solicitante,
                     Referencia = datos.Referencia,
                     Observacion = datos.Cabecera?.Observacion,
@@ -409,7 +410,7 @@ namespace orion.Controllers
                 }
 
                 orden.Fecha = DateTime.TryParse(datos.Fecha, out var fecha) ? fecha : orden.Fecha;
-                orden.TipoCambio = datos.Tc;
+                orden.TipoCambio = await ObtenerTipoCambioTextoPorFechaAsync(DateTime.TryParse(datos.Fecha, out var fechaTcActualizar) ? fechaTcActualizar : (orden.Fecha ?? DateTime.Now));
                 orden.Solicitante = datos.Solicitante;
                 orden.Referencia = datos.Referencia;
                 orden.Observacion = datos.Cabecera?.Observacion;
@@ -892,7 +893,7 @@ namespace orion.Controllers
                 Aprobador = aprobadorTexto,
                 Rol = "",
                 Referencia = orden.Referencia,
-                Tc = orden.TipoCambio ?? "6.96",
+                Tc = string.IsNullOrWhiteSpace(orden.TipoCambio) ? await ObtenerTipoCambioTextoPorFechaAsync(orden.Fecha ?? DateTime.Now) : orden.TipoCambio,
                 Cabecera = new CabeceraDto
                 {
                     Observacion = orden.Observacion,
@@ -926,6 +927,17 @@ namespace orion.Controllers
                 Id = orden.Id
             };
         }
+        private async Task<string> ObtenerTipoCambioTextoPorFechaAsync(DateTime fecha)
+        {
+            var registro = await _context.TipoCambioFecha
+                .Where(t => t.Estado == "1" && fecha.Date >= t.FechaInicio.Date && fecha.Date <= t.FechaFin.Date)
+                .OrderByDescending(t => t.FechaInicio)
+                .FirstOrDefaultAsync();
+
+            var valor = registro?.Valor ?? TipoCambioPorDefecto;
+            return valor.ToString("0.####");
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetProveedores()
         {

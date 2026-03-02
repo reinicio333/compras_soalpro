@@ -4,6 +4,7 @@ let proveedoresDisponibles = [];
 let estadosDisponibles = [];
 let ordenEditando = null;
 window.esUsuarioPlanta = false;
+let tipoCambioActual = "6.96";
 
 // Configuración del Grid
 const gridOptions = {
@@ -225,6 +226,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('btnNuevaOrden').addEventListener('click', abrirModalNuevaOrden);
+
+    document.getElementById('fecha_orden').addEventListener('change', function () {
+        actualizarTipoCambioPorFecha(this.value);
+    });
 });
 
 
@@ -322,6 +327,7 @@ function abrirModalNuevaOrden() {
     const hoy = new Date();
     const fechaLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
     document.getElementById('fecha_orden').value = fechaLocal;
+    actualizarTipoCambioPorFecha(fechaLocal);
 
     const modal = new Modal(document.getElementById('modalOrden'));
     modal.show();
@@ -498,6 +504,16 @@ function calcularTotal(input) {
     fila.querySelector('.total-fila').textContent = total;
 }
 
+async function actualizarTipoCambioPorFecha(fecha) {
+    try {
+        const response = await fetch(`/TipoCambio/GetTipoCambioPorFecha?fecha=${encodeURIComponent(fecha || '')}`);
+        const data = await response.json();
+        tipoCambioActual = data?.valor || '6.96';
+    } catch (error) {
+        tipoCambioActual = '6.96';
+    }
+}
+
 function recopilarDatos() {
     const idOrden = document.getElementById('id_orden').value;
     const idSolicitud = document.getElementById('id_solicitud_actual').value;
@@ -520,7 +536,7 @@ function recopilarDatos() {
         rol: document.getElementById('rol_orden').value,
         referencia: document.getElementById('referencia_orden').value,
         aprobador: document.getElementById('aprobador_orden').value,
-        tc: '6.96',
+        tc: tipoCambioActual,
         esImportacion: document.getElementById('es_importacion').checked,
         cabecera: {
             observacion: document.getElementById('observacion').value,
@@ -630,6 +646,7 @@ async function editarOrden(id) {
         document.getElementById('id_orden').value = data.orden.id;
 
         document.getElementById('fecha_orden').value = data.orden.fecha || '';
+        tipoCambioActual = data.orden.tipoCambio || '6.96';
         document.getElementById('select_proveedor').value = data.orden.proveedor || '';
         document.getElementById('referencia_orden').value = data.orden.referencia || '';
         document.getElementById('id_solicitud_actual').value = data.orden.idSolicitud || '';
