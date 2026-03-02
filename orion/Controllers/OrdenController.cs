@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using orion.Models;
 using orion.Servicios;
+using System.IO;
 
 namespace orion.Controllers
 {
@@ -11,6 +12,11 @@ namespace orion.Controllers
     {
         private readonly OrionContext _context;
         private const decimal TipoCambioPorDefecto = 6.96m;
+        private const long MaxArchivoBytes = 1 * 1024 * 1024;
+        private static readonly HashSet<string> ExtensionesPermitidas = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf", ".xls", ".xlsx", ".doc", ".docx"
+        };
 
         public OrdenController(OrionContext context)
         {
@@ -315,6 +321,118 @@ namespace orion.Controllers
             }
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> SubirArchivosOrden(int idOrden, List<IFormFile> archivos)
+        {
+            try
+            {
+                if (idOrden <= 0)
+                {
+                    return Json(new { tipo = "warning", mensaje = "La orden no es válida" });
+                }
+
+                var ordenExiste = await _context.OrdenCompra.AnyAsync(o => o.Id == idOrden);
+                if (!ordenExiste)
+                {
+                    return Json(new { tipo = "warning", mensaje = "La orden no existe" });
+                }
+
+                if (archivos == null || archivos.Count == 0)
+                {
+                    return Json(new { tipo = "warning", mensaje = "Debe seleccionar al menos un archivo" });
+                }
+
+                var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var carpetaOrden = Path.Combine(webRoot, "uploads", "ordenes", idOrden.ToString());
+                Directory.CreateDirectory(carpetaOrden);
+
+                foreach (var archivo in archivos)
+                {
+                    if (archivo.Length <= 0)
+                    {
+                        continue;
+                    }
+
+                    if (archivo.Length > MaxArchivoBytes)
+                    {
+                        return Json(new { tipo = "warning", mensaje = $"El archivo '{archivo.FileName}' supera 1MB" });
+                    }
+
+                    var extension = Path.GetExtension(archivo.FileName);
+                    if (string.IsNullOrWhiteSpace(extension) || !ExtensionesPermitidas.Contains(extension))
+                    {
+                        return Json(new { tipo = "warning", mensaje = $"El archivo '{archivo.FileName}' no tiene un formato permitido" });
+                    }
+
+                    var nombreLimpio = Path.GetFileNameWithoutExtension(archivo.FileName);
+                    nombreLimpio = string.Concat(nombreLimpio.Split(Path.GetInvalidFileNameChars())).Trim();
+                    if (string.IsNullOrWhiteSpace(nombreLimpio))
+                    {
+                        nombreLimpio = "archivo";
+                    }
+
+                    var nombreFinal = $"{nombreLimpio}_{DateTime.Now:yyyyMMddHHmmssfff}{extension}";
+                    var rutaDestino = Path.Combine(carpetaOrden, nombreFinal);
+
+                    await using var stream = new FileStream(rutaDestino, FileMode.Create);
+                    await archivo.CopyToAsync(stream);
+                }
+
+                return Json(new { tipo = "success", mensaje = "Archivos subidos correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error al subir archivos: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ObtenerArchivosOrden(int idOrden)
+        {
+            try
+            {
+                var ordenExiste = await _context.OrdenCompra.AnyAsync(o => o.Id == idOrden);
+                if (!ordenExiste)
+                {
+                    return Json(new List<object>());
+                }
+
+                var carpetaOrden = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "ordenes", idOrden.ToString());
+                if (!Directory.Exists(carpetaOrden))
+                {
+                    return Json(new List<object>());
+                }
+
+                var archivos = Directory.GetFiles(carpetaOrden)
+                    .Select(ruta =>
+                    {
+                        var info = new FileInfo(ruta);
+                        return new
+                        {
+                            Nombre = info.Name,
+                            Url = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(info.Name)}",
+                            TamanoKb = Math.Round(info.Length / 1024m, 2),
+                            FechaOrden = info.LastWriteTime
+                        };
+                    })
+                    .OrderByDescending(a => a.FechaOrden)
+                    .Select(a => new
+                    {
+                        a.Nombre,
+                        a.Url,
+                        a.TamanoKb,
+                        Fecha = a.FechaOrden.ToString("dd/MM/yyyy HH:mm")
+                    })
+                    .ToList();
+
+                return Json(archivos);
+            }
+            catch (Exception ex)
+            {
+                return Json(new { error = true, message = "Error al obtener archivos: " + ex.Message });
+            }
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetOrden(int id)

@@ -5,6 +5,8 @@ let estadosDisponibles = [];
 let ordenEditando = null;
 window.esUsuarioPlanta = false;
 let tipoCambioActual = "6.96";
+const tiposArchivoPermitidos = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'xls', 'xlsx', 'doc', 'docx'];
+const maxArchivoBytes = 1024 * 1024;
 
 // Configuración del Grid
 const gridOptions = {
@@ -231,6 +233,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('fecha_orden').addEventListener('change', function () {
         actualizarTipoCambioPorFecha(this.value);
     });
+
+    const inputArchivos = document.getElementById('archivos_orden');
+    if (inputArchivos) {
+        inputArchivos.addEventListener('change', validarArchivosSeleccionados);
+    }
 });
 
 
@@ -373,6 +380,7 @@ function abrirModalNuevaOrden() {
     document.getElementById('fecha_orden').value = fechaLocal;
     actualizarTipoCambioPorFecha(fechaLocal);
     seleccionarAprobadorPorDefecto();
+    renderizarListaArchivos('lista_archivos_orden', []);
 
     const modal = new Modal(document.getElementById('modalOrden'));
     modal.show();
@@ -673,6 +681,8 @@ async function guardarOrden() {
         mostrarAlerta(result.mensaje, result.tipo);
 
         if (result.tipo === 'success') {
+            const idOrden = datos.idOrden > 0 ? datos.idOrden : result.id;
+            await subirArchivosOrden(idOrden);
             cerrarModalOrden();
             cargarOrdenes();
         }
@@ -695,6 +705,7 @@ async function editarOrden(id) {
         ordenEditando = data.orden;
         document.getElementById('titleModalOrden').innerHTML = '<i class="fas fa-edit mr-2 text-red-400"></i>EDITAR ORDEN DE COMPRA';
         document.getElementById('id_orden').value = data.orden.id;
+        await cargarArchivosOrden(data.orden.id, 'lista_archivos_orden');
 
         document.getElementById('fecha_orden').value = data.orden.fecha || '';
         tipoCambioActual = data.orden.tipoCambio || '6.96';
@@ -932,6 +943,93 @@ function cerrarModalOrden() {
     const modal = new Modal(document.getElementById('modalOrden'));
     modal.hide();
     limpiarFormulario();
+    const inputArchivos = document.getElementById('archivos_orden');
+    if (inputArchivos) inputArchivos.value = '';
+    renderizarListaArchivos('lista_archivos_orden', []);
+}
+
+
+function validarArchivosSeleccionados() {
+    const input = document.getElementById('archivos_orden');
+    if (!input || !input.files) return;
+
+    for (const archivo of input.files) {
+        const extension = (archivo.name.split('.').pop() || '').toLowerCase();
+        if (!tiposArchivoPermitidos.includes(extension)) {
+            mostrarAlerta(`El archivo ${archivo.name} no tiene un formato permitido`, 'warning');
+            input.value = '';
+            return;
+        }
+
+        if (archivo.size > maxArchivoBytes) {
+            mostrarAlerta(`El archivo ${archivo.name} supera 1MB`, 'warning');
+            input.value = '';
+            return;
+        }
+    }
+}
+
+async function subirArchivosOrden(idOrden) {
+    const input = document.getElementById('archivos_orden');
+    if (!input || !input.files || input.files.length === 0) return;
+
+    const formData = new FormData();
+    formData.append('idOrden', idOrden);
+    Array.from(input.files).forEach(archivo => formData.append('archivos', archivo));
+
+    try {
+        const response = await fetch('/Orden/SubirArchivosOrden', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (result.tipo !== 'success') {
+            mostrarAlerta(result.mensaje || 'No se pudieron subir los archivos', result.tipo || 'warning');
+            return;
+        }
+
+        input.value = '';
+        await cargarArchivosOrden(idOrden, 'lista_archivos_orden');
+    } catch (error) {
+        console.error('Error al subir archivos:', error);
+        mostrarAlerta('Error al subir archivos adjuntos', 'error');
+    }
+}
+
+function renderizarListaArchivos(idContenedor, archivos) {
+    const contenedor = document.getElementById(idContenedor);
+    if (!contenedor) return;
+
+    if (!Array.isArray(archivos) || archivos.length === 0) {
+        contenedor.innerHTML = '<span class="text-gray-400">Sin archivos adjuntos</span>';
+        return;
+    }
+
+    contenedor.innerHTML = archivos.map(a => `
+        <div class="truncate">
+            <a href="${a.url}" target="_blank" class="text-blue-300 hover:text-blue-200 hover:underline">
+                ${a.nombre}
+            </a>
+            <span class="text-gray-500">(${a.tamanoKb} KB)</span>
+        </div>
+    `).join('');
+}
+
+async function cargarArchivosOrden(idOrden, idContenedor) {
+    if (!idOrden) {
+        renderizarListaArchivos(idContenedor, []);
+        return;
+    }
+
+    try {
+        const response = await fetch(`/Orden/ObtenerArchivosOrden?idOrden=${idOrden}`);
+        const data = await response.json();
+        renderizarListaArchivos(idContenedor, Array.isArray(data) ? data : []);
+    } catch (error) {
+        console.error('Error al cargar archivos:', error);
+        renderizarListaArchivos(idContenedor, []);
+    }
 }
 
 
@@ -1015,6 +1113,7 @@ async function verEstadoOrden(id) {
             document.getElementById('iframePDFEstado').src = url;
             document.getElementById('numero_orden_modal').textContent = id;
             document.getElementById('id_orden_estado').value = id;
+            await cargarArchivosOrden(id, 'lista_archivos_estado');
 
             const infoSolicitud = document.getElementById('info_solicitud_vinculada');
             const solicitudesUnicas = [...new Set(dataOrden.productos.map(p => p.idSolicitud))];
