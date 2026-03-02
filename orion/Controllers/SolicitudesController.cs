@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using orion.Models;
 using orion.Servicios;
+using System.Globalization;
 
 namespace orion.Controllers
 {
@@ -10,6 +11,31 @@ namespace orion.Controllers
     public class SolicitudesController : Controller
     {
         private readonly OrionContext _context;
+
+        private static decimal ParseDecimalFlexible(string? value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return 0;
+            }
+
+            var normalizedValue = value.Trim();
+
+            if (decimal.TryParse(normalizedValue, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedInvariant))
+            {
+                return parsedInvariant;
+            }
+
+            if (decimal.TryParse(normalizedValue, NumberStyles.Number, CultureInfo.CurrentCulture, out var parsedCurrentCulture))
+            {
+                return parsedCurrentCulture;
+            }
+
+            normalizedValue = normalizedValue.Replace(",", ".");
+            return decimal.TryParse(normalizedValue, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedNormalized)
+                ? parsedNormalized
+                : 0;
+        }
 
         public SolicitudesController(OrionContext context)
         {
@@ -90,12 +116,12 @@ namespace orion.Controllers
                         Proveedor = Request.Form[$"productos[{index}][proveedor]"],
                         Caracteristicas = Request.Form[$"productos[{index}][caracteristicas]"],
                         Unidad = Request.Form[$"productos[{index}][unidad]"],
-                        Cantidad = decimal.Parse(Request.Form[$"productos[{index}][cantidad]"]),
+                        Cantidad = ParseDecimalFlexible(Request.Form[$"productos[{index}][cantidad]"]),
                         CodProveedor = Request.Form[$"productos[{index}][codProveedor]"],
                         FrequerimientoDias = string.IsNullOrEmpty(Request.Form[$"productos[{index}][frequerimiento_dias]"])
                         ? null
                         : int.Parse(Request.Form[$"productos[{index}][frequerimiento_dias]"]),
-                        UltimoPrecio = decimal.TryParse(Request.Form[$"productos[{index}][ultimoPrecio]"], out var up) ? up : 0,
+                        UltimoPrecio = ParseDecimalFlexible(Request.Form[$"productos[{index}][ultimoPrecio]"]),
                         FultimoPrecio = DateTime.TryParse(Request.Form[$"productos[{index}][fultimaCompra]"], out var fup) ? fup : null,
                         Estado = "Creado",
                         Faprobado = null
@@ -238,12 +264,12 @@ namespace orion.Controllers
                             Proveedor = Request.Form[$"productos[{index}][proveedor]"],
                             Caracteristicas = Request.Form[$"productos[{index}][caracteristicas]"],
                             Unidad = Request.Form[$"productos[{index}][unidad]"],
-                            Cantidad = decimal.Parse(Request.Form[$"productos[{index}][cantidad]"]),
+                            Cantidad = ParseDecimalFlexible(Request.Form[$"productos[{index}][cantidad]"]),
                             CodProveedor = Request.Form[$"productos[{index}][codProveedor]"],
                             FrequerimientoDias = string.IsNullOrEmpty(Request.Form[$"productos[{index}][frequerimiento_dias]"])
                             ? null
                             : int.Parse(Request.Form[$"productos[{index}][frequerimiento_dias]"]),
-                            UltimoPrecio = decimal.TryParse(Request.Form[$"productos[{index}][ultimoPrecio]"], out var up) ? up : 0,
+                            UltimoPrecio = ParseDecimalFlexible(Request.Form[$"productos[{index}][ultimoPrecio]"]),
                             FultimoPrecio = DateTime.TryParse(Request.Form[$"productos[{index}][fultimaCompra]"], out var fup) ? fup : null,
                             Estado = "Creado",
                             Faprobado = null
