@@ -293,8 +293,12 @@ function seleccionarAprobadorPorDefecto() {
     if (!selectAprobador) return;
 
     const opcionDefault = Array.from(selectAprobador.options).find(option => {
-        const nombre = (option.textContent || '').toLowerCase();
-        return nombre.includes('gcardenas') && option.value;
+        const nombre = (option.textContent || '').toLowerCase().trim();
+        return option.value && (
+            nombre.includes('gcardenas') ||
+            nombre.includes('gerardo cardenas') ||
+            (nombre.includes('gerardo') && nombre.includes('cardenas'))
+        );
     });
 
     if (opcionDefault) {
