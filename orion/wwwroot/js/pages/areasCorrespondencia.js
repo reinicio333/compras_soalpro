@@ -98,3 +98,26 @@ function eliminarArea(id) {
 function cerrarModalArea() {
     new Modal(document.getElementById('modalArea')).hide();
 }
+
+
+function mostrarAlerta(mensaje, tipo) {
+    const config = {
+        success: { icon: 'success', color: '#10b981', title: 'Éxito' },
+        error: { icon: 'error', color: '#ef4444', title: 'Error' },
+        warning: { icon: 'warning', color: '#f59e0b', title: 'Advertencia' },
+        info: { icon: 'info', color: '#3b82f6', title: 'Información' }
+    };
+
+    const alertConfig = config[tipo] || config.info;
+
+    Swal.fire({
+        title: alertConfig.title,
+        text: mensaje,
+        icon: alertConfig.icon,
+        background: '#1f2937',
+        color: '#ffffff',
+        confirmButtonColor: alertConfig.color,
+        timer: tipo === 'success' ? 2500 : 4000,
+        timerProgressBar: true
+    });
+}
