@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using orion.Models;
 using orion.Servicios;
 using System.Globalization;
+using System.Text.RegularExpressions;
 
 namespace orion.Controllers
 {
@@ -35,6 +36,19 @@ namespace orion.Controllers
             return decimal.TryParse(normalizedValue, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedNormalized)
                 ? parsedNormalized
                 : 0;
+        }
+
+        private static List<int> ObtenerIndicesProductos(IFormCollection form)
+        {
+            var regexIndice = new Regex(@"^productos\[(\d+)\]\[codigo\]$", RegexOptions.Compiled);
+
+            return form.Keys
+                .Select(key => regexIndice.Match(key))
+                .Where(match => match.Success)
+                .Select(match => int.Parse(match.Groups[1].Value))
+                .Distinct()
+                .OrderBy(index => index)
+                .ToList();
         }
 
         public SolicitudesController(OrionContext context)
@@ -104,9 +118,9 @@ namespace orion.Controllers
                 await _context.SaveChangesAsync();
 
                 var productos = new List<DetalleSolicitudes>();
-                int index = 1;
+                var indicesProductos = ObtenerIndicesProductos(Request.Form);
 
-                while (Request.Form.ContainsKey($"productos[{index}][codigo]"))
+                foreach (var index in indicesProductos)
                 {
                     var producto = new DetalleSolicitudes
                     {
@@ -128,7 +142,6 @@ namespace orion.Controllers
                     };
 
                     productos.Add(producto);
-                    index++;
                 }
 
                 if (!productos.Any())
@@ -239,9 +252,9 @@ namespace orion.Controllers
                 _context.DetalleSolicitudes.RemoveRange(productosCreados);
 
                 var productos = new List<DetalleSolicitudes>();
-                int index = 1;
+                var indicesProductos = ObtenerIndicesProductos(Request.Form);
 
-                while (Request.Form.ContainsKey($"productos[{index}][codigo]"))
+                foreach (var index in indicesProductos)
                 {
                     var codigoProducto = Request.Form[$"productos[{index}][codigo]"];
 
@@ -276,8 +289,6 @@ namespace orion.Controllers
                         };
                         productos.Add(producto);
                     }
-
-                    index++;
                 }
 
                 if (!productos.Any() && !productosEnPendiente.Any())
