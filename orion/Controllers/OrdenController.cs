@@ -3,6 +3,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using orion.Models;
 using orion.Servicios;
+using System.IO;
+using System.Text.Json;
 
 namespace orion.Controllers
 {
@@ -11,6 +13,11 @@ namespace orion.Controllers
     {
         private readonly OrionContext _context;
         private const decimal TipoCambioPorDefecto = 6.96m;
+        private const long MaxArchivoBytes = 1 * 1024 * 1024;
+        private static readonly HashSet<string> ExtensionesPermitidas = new(StringComparer.OrdinalIgnoreCase)
+        {
+            ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf", ".xls", ".xlsx", ".doc", ".docx"
+        };
 
         public OrdenController(OrionContext context)
         {
@@ -315,6 +322,107 @@ namespace orion.Controllers
             }
         }
 
+
+        [HttpPost]
+        public async Task<IActionResult> SubirArchivosOrden(int idOrden, List<IFormFile> archivos)
+        {
+            try
+            {
+                if (idOrden <= 0)
+                {
+                    return Json(new { tipo = "warning", mensaje = "La orden no es válida" });
+                }
+
+                var orden = await _context.OrdenCompra.FirstOrDefaultAsync(o => o.Id == idOrden);
+                if (orden == null)
+                {
+                    return Json(new { tipo = "warning", mensaje = "La orden no existe" });
+                }
+
+                if (archivos == null || archivos.Count == 0)
+                {
+                    return Json(new { tipo = "warning", mensaje = "Debe seleccionar al menos un archivo" });
+                }
+
+                var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                var carpetaOrden = Path.Combine(webRoot, "uploads", "ordenes", idOrden.ToString());
+                Directory.CreateDirectory(carpetaOrden);
+
+                var archivosActuales = string.IsNullOrWhiteSpace(orden.RutasArchivos)
+                    ? new List<ArchivoOrdenItemDto>()
+                    : JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
+
+                foreach (var archivo in archivos)
+                {
+                    if (archivo.Length <= 0)
+                    {
+                        continue;
+                    }
+
+                    if (archivo.Length > MaxArchivoBytes)
+                    {
+                        return Json(new { tipo = "warning", mensaje = $"El archivo '{archivo.FileName}' supera 1MB" });
+                    }
+
+                    var extension = Path.GetExtension(archivo.FileName);
+                    if (string.IsNullOrWhiteSpace(extension) || !ExtensionesPermitidas.Contains(extension))
+                    {
+                        return Json(new { tipo = "warning", mensaje = $"El archivo '{archivo.FileName}' no tiene un formato permitido" });
+                    }
+
+                    var nombreLimpio = Path.GetFileNameWithoutExtension(archivo.FileName);
+                    nombreLimpio = string.Concat(nombreLimpio.Split(Path.GetInvalidFileNameChars())).Trim();
+                    if (string.IsNullOrWhiteSpace(nombreLimpio))
+                    {
+                        nombreLimpio = "archivo";
+                    }
+
+                    var nombreFinal = $"{nombreLimpio}_{DateTime.Now:yyyyMMddHHmmssfff}{extension}";
+                    var rutaDestino = Path.Combine(carpetaOrden, nombreFinal);
+
+                    await using (var stream = new FileStream(rutaDestino, FileMode.Create))
+                    {
+                        await archivo.CopyToAsync(stream);
+                    }
+
+                    archivosActuales.Add(new ArchivoOrdenItemDto
+                    {
+                        Nombre = Path.GetFileName(archivo.FileName),
+                        Url = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(nombreFinal)}",
+                        TamanoKb = Math.Round(archivo.Length / 1024m, 2),
+                        Fecha = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                    });
+                }
+
+                orden.RutasArchivos = JsonSerializer.Serialize(archivosActuales);
+                await _context.SaveChangesAsync();
+                return Json(new { tipo = "success", mensaje = "Archivos subidos correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error al subir archivos: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ObtenerArchivosOrden(int idOrden)
+        {
+            try
+            {
+                var orden = await _context.OrdenCompra.FirstOrDefaultAsync(o => o.Id == idOrden);
+                if (orden == null || string.IsNullOrWhiteSpace(orden.RutasArchivos))
+                {
+                    return Json(new List<object>());
+                }
+
+                var archivos = JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
+                return Json(archivos.OrderByDescending(a => ParseFechaOrden(a.Fecha)).ToList());
+            }
+            catch (Exception ex)
+            {
+                return Json(new { error = true, message = "Error al obtener archivos: " + ex.Message });
+            }
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetOrden(int id)
@@ -1164,10 +1272,27 @@ namespace orion.Controllers
             return usuario?.Id.ToString();
         }
 
+        private static DateTime ParseFechaOrden(string? fecha)
+        {
+            if (DateTime.TryParseExact(fecha, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out var fechaParseada))
+            {
+                return fechaParseada;
+            }
+            return DateTime.MinValue;
+        }
+
         #endregion
     }
 
     #region DTOs
+
+    public class ArchivoOrdenItemDto
+    {
+        public string Nombre { get; set; }
+        public string Url { get; set; }
+        public decimal TamanoKb { get; set; }
+        public string Fecha { get; set; }
+    }
 
     public class OrdenCompraDto
     {
