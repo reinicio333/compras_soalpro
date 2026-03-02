@@ -34,9 +34,12 @@ namespace orion.Models
         public string? Telefono { get; set; }
         public string? NomContacto { get; set; }
         public string? Aprobador { get; set; }
+        public int? IdAreaCorrespondencia { get; set; }
+        public string? CorrespondeAsc { get; set; }
 
         // Propiedades de navegación
         public virtual SolicitudPrecio? SolicitudPrecio { get; set; }
         public virtual EstadosOrden? Estado { get; set; }
+        public virtual AreaCorrespondencia? AreaCorrespondencia { get; set; }
     }
 }

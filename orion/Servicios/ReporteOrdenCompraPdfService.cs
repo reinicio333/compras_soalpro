@@ -162,9 +162,9 @@ namespace orion.Servicios
                         .AlignMiddle().AlignCenter().Text(datos.Telefono ?? "").FontFamily("Cambria").FontSize(8);
                     table.Cell().PaddingBottom(5);
                     table.Cell().PaddingBottom(5).PaddingRight(6).AlignMiddle()
-                        .Text("CORRESPONDE A S.C.").FontFamily("Cambria").FontSize(8);
+                        .Text("CORRESPONDE A.S.C.").FontFamily("Cambria").FontSize(8);
                     table.Cell().PaddingBottom(5).Border(1).PaddingVertical(2).PaddingHorizontal(10).AlignCenter()
-                        .AlignMiddle().Text(datos.Rol ?? "").FontFamily("Cambria").FontSize(8);
+                        .AlignMiddle().Text(datos.CorrespondeAsc ?? "").FontFamily("Cambria").FontSize(8);
 
                     // Fila 4
                     table.Cell().PaddingBottom(5).PaddingRight(6).AlignMiddle()

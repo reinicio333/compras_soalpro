@@ -1,4 +1,3 @@
-﻿@using System.Security.Claims
 <style>
     .selectize-dropdown {
         z-index: 10000 !important;
@@ -193,11 +192,12 @@
                     </div>
                     <div>
                         <label class="block mb-1 text-xs font-medium text-white">
-                            <i class="fas fa-id-badge mr-1 text-blue-400 text-xs"></i>ROL:
+                            <i class="fas fa-id-badge mr-1 text-blue-400 text-xs"></i>CORRESPONDE A.S.C.:
                         </label>
-                        <input type="text" id="rol_orden" readonly
-                               class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-1.5"
-                               value="@User.FindFirst(ClaimTypes.Role)?.Value">
+                        <select id="corresponde_asc"
+                                class="bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-1.5">
+                            <option value="">Seleccione...</option>
+                        </select>
                     </div>
                     <div>
                         <label class="block mb-1 text-xs font-medium text-white">

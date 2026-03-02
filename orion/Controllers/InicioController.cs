@@ -58,6 +58,7 @@ namespace orion.Controllers
                 {
                     "GERENCIA" => RedirectToAction("Index", "Orden"),
                     "CONTABILIDAD" => RedirectToAction("Index", "TipoCambio"),
+                    "CONTADURIA" => RedirectToAction("Index", "TipoCambio"),
                     "COMPRAS" => RedirectToAction("Index", "Orden"),
                     "ALMACEN" => RedirectToAction("Index", "Orden"),
                     "ADMINISTRADOR" => RedirectToAction("Index", "Solicitudes"),
