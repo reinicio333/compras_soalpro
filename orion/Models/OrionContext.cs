@@ -30,7 +30,6 @@
         public virtual DbSet<HistorialEstadoOrden> HistorialEstadoOrden { get; set; }
         public virtual DbSet<TipoCambioFecha> TipoCambioFecha { get; set; }
         public virtual DbSet<AreaCorrespondencia> AreasCorrespondencia { get; set; }
-        public virtual DbSet<ArchivoOrden> ArchivosOrden { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -329,6 +328,10 @@
                 .IsUnicode(false)
                 .HasColumnName("corresponde_asc");
 
+            entity.Property(e => e.RutasArchivos)
+                .HasColumnType("nvarchar(max)")
+                .HasColumnName("rutas_archivos");
+
             // Relaciones
             entity.HasOne(e => e.SolicitudPrecio)
                 .WithMany(s => s.OrdenesCompra)
@@ -486,45 +489,6 @@
                 .IsUnicode(false)
                 .HasColumnName("estado");
         });
-
-        modelBuilder.Entity<ArchivoOrden>(entity =>
-        {
-            entity.HasKey(e => e.Id);
-            entity.ToTable("archivos_orden");
-
-            entity.Property(e => e.Id).HasColumnName("id");
-            entity.Property(e => e.IdOrden).HasColumnName("id_orden");
-            entity.Property(e => e.NombreOriginal)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("nombre_original");
-            entity.Property(e => e.NombreGuardado)
-                .HasMaxLength(255)
-                .IsUnicode(false)
-                .HasColumnName("nombre_guardado");
-            entity.Property(e => e.RutaRelativa)
-                .HasMaxLength(500)
-                .IsUnicode(false)
-                .HasColumnName("ruta_relativa");
-            entity.Property(e => e.Extension)
-                .HasMaxLength(20)
-                .IsUnicode(false)
-                .HasColumnName("extension");
-            entity.Property(e => e.TamanoBytes).HasColumnName("tamano_bytes");
-            entity.Property(e => e.FechaCreacion)
-                .HasColumnName("fecha_creacion")
-                .HasDefaultValueSql("GETDATE()");
-            entity.Property(e => e.Usuario)
-                .HasMaxLength(250)
-                .IsUnicode(false)
-                .HasColumnName("usuario");
-
-            entity.HasOne(e => e.Orden)
-                .WithMany(o => o.Archivos)
-                .HasForeignKey(e => e.IdOrden)
-                .OnDelete(DeleteBehavior.Cascade);
-        });
-     
 
         OnModelCreatingPartial(modelBuilder);
         }

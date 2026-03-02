@@ -36,11 +36,11 @@ namespace orion.Models
         public string? Aprobador { get; set; }
         public int? IdAreaCorrespondencia { get; set; }
         public string? CorrespondeAsc { get; set; }
+        public string? RutasArchivos { get; set; }
 
         // Propiedades de navegación
         public virtual SolicitudPrecio? SolicitudPrecio { get; set; }
         public virtual EstadosOrden? Estado { get; set; }
         public virtual AreaCorrespondencia? AreaCorrespondencia { get; set; }
-        public virtual ICollection<ArchivoOrden> Archivos { get; set; } = new List<ArchivoOrden>();
     }
 }

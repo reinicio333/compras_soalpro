@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using orion.Models;
 using orion.Servicios;
 using System.IO;
+using System.Text.Json;
 
 namespace orion.Controllers
 {
@@ -332,8 +333,8 @@ namespace orion.Controllers
                     return Json(new { tipo = "warning", mensaje = "La orden no es válida" });
                 }
 
-                var ordenExiste = await _context.OrdenCompra.AnyAsync(o => o.Id == idOrden);
-                if (!ordenExiste)
+                var orden = await _context.OrdenCompra.FirstOrDefaultAsync(o => o.Id == idOrden);
+                if (orden == null)
                 {
                     return Json(new { tipo = "warning", mensaje = "La orden no existe" });
                 }
@@ -346,6 +347,10 @@ namespace orion.Controllers
                 var webRoot = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
                 var carpetaOrden = Path.Combine(webRoot, "uploads", "ordenes", idOrden.ToString());
                 Directory.CreateDirectory(carpetaOrden);
+
+                var archivosActuales = string.IsNullOrWhiteSpace(orden.RutasArchivos)
+                    ? new List<ArchivoOrdenItemDto>()
+                    : JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
 
                 foreach (var archivo in archivos)
                 {
@@ -380,22 +385,16 @@ namespace orion.Controllers
                         await archivo.CopyToAsync(stream);
                     }
 
-                    var rutaRelativa = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(nombreFinal)}";
-                    var adjunto = new ArchivoOrden
+                    archivosActuales.Add(new ArchivoOrdenItemDto
                     {
-                        IdOrden = idOrden,
-                        NombreOriginal = Path.GetFileName(archivo.FileName),
-                        NombreGuardado = nombreFinal,
-                        RutaRelativa = rutaRelativa,
-                        Extension = extension,
-                        TamanoBytes = archivo.Length,
-                        FechaCreacion = DateTime.Now,
-                        Usuario = User.Identity?.Name ?? "Sistema"
-                    };
-
-                    _context.ArchivosOrden.Add(adjunto);
+                        Nombre = Path.GetFileName(archivo.FileName),
+                        Url = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(nombreFinal)}",
+                        TamanoKb = Math.Round(archivo.Length / 1024m, 2),
+                        Fecha = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                    });
                 }
 
+                orden.RutasArchivos = JsonSerializer.Serialize(archivosActuales);
                 await _context.SaveChangesAsync();
                 return Json(new { tipo = "success", mensaje = "Archivos subidos correctamente" });
             }
@@ -410,25 +409,14 @@ namespace orion.Controllers
         {
             try
             {
-                var ordenExiste = await _context.OrdenCompra.AnyAsync(o => o.Id == idOrden);
-                if (!ordenExiste)
+                var orden = await _context.OrdenCompra.FirstOrDefaultAsync(o => o.Id == idOrden);
+                if (orden == null || string.IsNullOrWhiteSpace(orden.RutasArchivos))
                 {
                     return Json(new List<object>());
                 }
 
-                var archivos = await _context.ArchivosOrden
-                    .Where(a => a.IdOrden == idOrden)
-                    .OrderByDescending(a => a.FechaCreacion)
-                    .Select(a => new
-                    {
-                        nombre = a.NombreOriginal,
-                        url = a.RutaRelativa,
-                        tamanoKb = Math.Round(a.TamanoBytes / 1024m, 2),
-                        fecha = a.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
-                    })
-                    .ToListAsync();
-
-                return Json(archivos);
+                var archivos = JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
+                return Json(archivos.OrderByDescending(a => ParseFechaOrden(a.Fecha)).ToList());
             }
             catch (Exception ex)
             {
@@ -1284,10 +1272,27 @@ namespace orion.Controllers
             return usuario?.Id.ToString();
         }
 
+        private static DateTime ParseFechaOrden(string? fecha)
+        {
+            if (DateTime.TryParseExact(fecha, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out var fechaParseada))
+            {
+                return fechaParseada;
+            }
+            return DateTime.MinValue;
+        }
+
         #endregion
     }
 
     #region DTOs
+
+    public class ArchivoOrdenItemDto
+    {
+        public string Nombre { get; set; }
+        public string Url { get; set; }
+        public decimal TamanoKb { get; set; }
+        public string Fecha { get; set; }
+    }
 
     public class OrdenCompraDto
     {
