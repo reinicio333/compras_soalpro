@@ -48,8 +48,10 @@ namespace orion.Controllers
                 }
                 else if (usuarioActual?.IdTipo == "GERENCIA")
                 {
-                    // GERENCIA: ve todas pero solo las que estan en Pre autorización (estado 2)
-                    query = query.Where(o => o.IdEstadoSolicitud == 2);
+                    // GERENCIA: ve solo ordenes en Pre autorización (estado 2) asignadas al aprobador actual
+                    var idGerenteActual = usuarioActual.Id.ToString();
+                    query = query.Where(o => o.IdEstadoSolicitud == 2
+                        && (o.Aprobador == idGerenteActual || o.Aprobador == nombreUsuario));
                 }
                 else if (usuarioActual?.IdTipo == "PLANTA")
                 {
@@ -110,8 +112,10 @@ namespace orion.Controllers
                             .Select(h => h.FechaCambio)
                             .FirstOrDefault(),
                         TodosEnStock = _context.SolicitudPrecio
-                            .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
-                            .All(sp => sp.EsStock == true),
+                            .Any(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                            && _context.SolicitudPrecio
+                                .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                                .All(sp => sp.EsStock == true),
                         Proveedor = _context.SolicitudPrecio
                             .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
                             .Join(_context.DetalleSolicitudes,
@@ -160,6 +164,23 @@ namespace orion.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> GetAprobadores()
+        {
+            var aprobadores = await _context.Usuarios
+                .Where(u => u.IdTipo == "GERENCIA")
+                .OrderBy(u => u.NomCompleto)
+                .Select(u => new
+                {
+                    id = u.Id.ToString(),
+                    usuario = u.Nombre,
+                    nombre = string.IsNullOrWhiteSpace(u.NomCompleto) ? u.Nombre : u.Nombre + " - " + u.NomCompleto
+                })
+                .ToListAsync();
+
+            return Json(aprobadores);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetEstados()
         {
             try
@@ -192,6 +213,12 @@ namespace orion.Controllers
                     .MaxAsync(sp => (int?)sp.IdSolicitudPrecio) ?? 0;
                 var nuevoIdSolicitudPrecio = maxIdSolicitudPrecio + 1;
 
+                var aprobadorId = await ObtenerAprobadorId(datos.Aprobador);
+                if (string.IsNullOrEmpty(aprobadorId))
+                {
+                    return Json(new { tipo = "warning", mensaje = "Debe seleccionar un APROVADOR válido" });
+                }
+
                 var orden = new OrdenCompra
                 {
                     Fecha = DateTime.TryParse(datos.Fecha, out var fecha) ? fecha : DateTime.Now,
@@ -219,6 +246,7 @@ namespace orion.Controllers
                     Nit = datos.Facturacion?.Nit,
                     Telefono = datos.Telefono,
                     NomContacto = datos.Contacto,
+                    Aprobador = aprobadorId,
                     EsImportacion = datos.EsImportacion
                 };
 
@@ -347,6 +375,7 @@ namespace orion.Controllers
                         orden.IdEstadoSolicitud,
                         orden.Telefono,
                         orden.NomContacto,
+                        orden.Aprobador,
                         Estado = orden.Estado?.Estado
                     },
                     productos
@@ -373,6 +402,12 @@ namespace orion.Controllers
                     return Json(new { tipo = "error", mensaje = "Orden no encontrada" });
                 }
 
+                var aprobadorId = await ObtenerAprobadorId(datos.Aprobador);
+                if (string.IsNullOrEmpty(aprobadorId))
+                {
+                    return Json(new { tipo = "warning", mensaje = "Debe seleccionar un APROVADOR válido" });
+                }
+
                 orden.Fecha = DateTime.TryParse(datos.Fecha, out var fecha) ? fecha : orden.Fecha;
                 orden.TipoCambio = datos.Tc;
                 orden.Solicitante = datos.Solicitante;
@@ -397,6 +432,7 @@ namespace orion.Controllers
                 orden.EsImportacion = datos.EsImportacion; 
                 orden.Telefono = datos.Telefono;
                 orden.NomContacto = datos.NomContacto;
+                orden.Aprobador = aprobadorId;
 
                 if (orden.IdSolicitudPrecio == null)
                 {
@@ -816,6 +852,31 @@ namespace orion.Controllers
                     ? usuarioReviso.Nombre + " - " + usuarioReviso.NomCompleto
                     : historialRevision.Usuario ?? "";
             }
+            var aprobadorTexto = "";
+            if (!string.IsNullOrWhiteSpace(orden.Aprobador))
+            {
+                Usuario? usuarioAprobador = null;
+                if (int.TryParse(orden.Aprobador, out var idAprobador))
+                {
+                    usuarioAprobador = await _context.Usuarios.FirstOrDefaultAsync(u => u.Id == idAprobador);
+                }
+                if (usuarioAprobador == null)
+                {
+                    usuarioAprobador = await _context.Usuarios.FirstOrDefaultAsync(u => u.Nombre == orden.Aprobador);
+                }
+
+                if (usuarioAprobador != null)
+                {
+                    aprobadorTexto = !string.IsNullOrWhiteSpace(usuarioAprobador.NomCompleto)
+                        ? usuarioAprobador.Nombre + " - " + usuarioAprobador.NomCompleto
+                        : usuarioAprobador.Nombre;
+                }
+                else
+                {
+                    aprobadorTexto = orden.Aprobador;
+                }
+            }
+
             return new OrdenCompraDto
             {
                 IdSolicitud = 0,
@@ -828,6 +889,7 @@ namespace orion.Controllers
                 ElaboradoPor = !string.IsNullOrEmpty(solicitantesTextoAutor) ? solicitantesTextoAutor : elaboradoPor,
                 AutorizadoPor = autorizadoPor,
                 RevisadoPor = revisadoPor,
+                Aprobador = aprobadorTexto,
                 Rol = "",
                 Referencia = orden.Referencia,
                 Tc = orden.TipoCambio ?? "6.96",
@@ -1041,6 +1103,29 @@ namespace orion.Controllers
                 return Json(new { error = true, message = "Error: " + ex.Message });
             }
         }
+
+        private async Task<string?> ObtenerAprobadorId(string? valorAprobador)
+        {
+            if (string.IsNullOrWhiteSpace(valorAprobador))
+            {
+                return null;
+            }
+
+            Usuario? usuario = null;
+            if (int.TryParse(valorAprobador, out var idAprobador))
+            {
+                usuario = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Id == idAprobador && u.IdTipo == "GERENCIA");
+            }
+            else
+            {
+                usuario = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Nombre == valorAprobador && u.IdTipo == "GERENCIA");
+            }
+
+            return usuario?.Id.ToString();
+        }
+
         #endregion
     }
 
@@ -1064,6 +1149,7 @@ namespace orion.Controllers
         public string ElaboradoPor { get; set; }
         public string AutorizadoPor { get; set; }
         public string RevisadoPor { get; set; }
+        public string Aprobador { get; set; }
         public CabeceraDto Cabecera { get; set; }
         public EntregaDto Entrega { get; set; }
         public PagoDto Pago { get; set; }

@@ -213,6 +213,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     cargarProveedores();
     cargarEstados();
+    cargarAprobadores();
 
     document.getElementById('es_importacion').addEventListener('change', function () {
         const texto = document.getElementById('tipo_orden_texto');
@@ -280,6 +281,30 @@ async function cargarEstados() {
         console.error('Error al cargar estados:', error);
     }
 }
+
+async function cargarAprobadores() {
+    try {
+        const response = await fetch('/Orden/GetAprobadores');
+        const aprobadores = await response.json();
+        const selectAprobador = document.getElementById('aprobador_orden');
+
+        if (!selectAprobador) return;
+
+        selectAprobador.innerHTML = '<option value="">Seleccione...</option>';
+
+        if (Array.isArray(aprobadores)) {
+            aprobadores.forEach(a => {
+                const option = document.createElement('option');
+                option.value = a.id;
+                option.textContent = a.nombre;
+                selectAprobador.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar aprobadores:', error);
+    }
+}
+
 async function verificarPermisos() {
     const response = await fetch('/Orden/GetTipoUsuario');
     const data = await response.json();
@@ -494,6 +519,7 @@ function recopilarDatos() {
         solicitante: document.getElementById('solicitante_orden').value,
         rol: document.getElementById('rol_orden').value,
         referencia: document.getElementById('referencia_orden').value,
+        aprobador: document.getElementById('aprobador_orden').value,
         tc: '6.96',
         esImportacion: document.getElementById('es_importacion').checked,
         cabecera: {
@@ -546,6 +572,11 @@ function recopilarDatos() {
             });
         }
     });
+
+    if (!datos.aprobador) {
+        mostrarAlerta('Debe seleccionar un APROVADOR', 'warning');
+        return null;
+    }
 
     if (datos.productos.length === 0) {
         mostrarAlerta('Debe seleccionar al menos un producto', 'warning');
@@ -607,6 +638,7 @@ async function editarOrden(id) {
         document.getElementById('tipo_orden_texto').textContent = data.orden.esImportacion ? 'Importación' : 'Nacional';
         document.getElementById('tel_prov').value = data.orden.telefono || '';
         document.getElementById('contacto_nom').value = data.orden.nomContacto || '';
+        document.getElementById('aprobador_orden').value = data.orden.aprobador || '';
 
         if (data.orden.formaPago) {
             const radio = document.querySelector(`input[name="forma_pago"][value="${data.orden.formaPago}"]`);
@@ -791,6 +823,7 @@ function limpiarFormulario() {
     document.getElementById('tel_prov').value = '';
     document.getElementById('contacto_nom').value = '';
     document.getElementById('referencia_orden').value = '';
+    document.getElementById('aprobador_orden').value = '';
     document.getElementById('id_solicitud_actual').value = '';
     document.getElementById('observacion').value = '';
     document.getElementById('es_importacion').checked = false;
