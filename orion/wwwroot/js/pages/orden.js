@@ -295,7 +295,7 @@ async function cargarAprobadores() {
         if (Array.isArray(aprobadores)) {
             aprobadores.forEach(a => {
                 const option = document.createElement('option');
-                option.value = a.usuario;
+                option.value = a.id;
                 option.textContent = a.nombre;
                 selectAprobador.appendChild(option);
             });
