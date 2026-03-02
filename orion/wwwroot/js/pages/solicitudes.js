@@ -568,7 +568,6 @@ btnNuevaSolicitud.addEventListener("click", function () {
     document.querySelector("#productosLista").innerHTML = '';
     contadorProductos = 0;
 
-    agregarProducto();
 
     const modal = new Modal(modalSolicitud);
     modal.show();
