@@ -424,6 +424,48 @@ namespace orion.Controllers
             }
         }
 
+        [HttpPost]
+        public async Task<IActionResult> EliminarArchivoOrden([FromBody] EliminarArchivoOrdenDto datos)
+        {
+            try
+            {
+                if (datos == null || datos.IdOrden <= 0 || string.IsNullOrWhiteSpace(datos.Url))
+                {
+                    return Json(new { tipo = "warning", mensaje = "Datos inválidos para eliminar archivo" });
+                }
+
+                var orden = await _context.OrdenCompra.FirstOrDefaultAsync(o => o.Id == datos.IdOrden);
+                if (orden == null || string.IsNullOrWhiteSpace(orden.RutasArchivos))
+                {
+                    return Json(new { tipo = "warning", mensaje = "La orden no tiene adjuntos" });
+                }
+
+                var archivos = JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
+                var archivoAEliminar = archivos.FirstOrDefault(a => string.Equals(a.Url, datos.Url, StringComparison.OrdinalIgnoreCase));
+
+                if (archivoAEliminar == null)
+                {
+                    return Json(new { tipo = "warning", mensaje = "No se encontró el archivo en la orden" });
+                }
+
+                archivos.Remove(archivoAEliminar);
+                orden.RutasArchivos = archivos.Count == 0 ? null : JsonSerializer.Serialize(archivos);
+                await _context.SaveChangesAsync();
+
+                var rutaLocal = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", datos.Url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                if (System.IO.File.Exists(rutaLocal))
+                {
+                    System.IO.File.Delete(rutaLocal);
+                }
+
+                return Json(new { tipo = "success", mensaje = "Archivo eliminado correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error al eliminar archivo: " + ex.Message });
+            }
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetOrden(int id)
         {
@@ -1292,6 +1334,12 @@ namespace orion.Controllers
         public string Url { get; set; }
         public decimal TamanoKb { get; set; }
         public string Fecha { get; set; }
+    }
+
+    public class EliminarArchivoOrdenDto
+    {
+        public int IdOrden { get; set; }
+        public string Url { get; set; }
     }
 
     public class OrdenCompraDto

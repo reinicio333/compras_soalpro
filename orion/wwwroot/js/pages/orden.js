@@ -1006,14 +1006,58 @@ function renderizarListaArchivos(idContenedor, archivos) {
         return;
     }
 
+    const permitirEliminar = idContenedor === 'lista_archivos_orden';
+
     contenedor.innerHTML = archivos.map(a => `
-        <div class="truncate">
-            <a href="${a.url}" target="_blank" class="text-blue-300 hover:text-blue-200 hover:underline">
-                ${a.nombre}
-            </a>
-            <span class="text-gray-500">(${a.tamanoKb} KB)</span>
+        <div class="flex items-center justify-between gap-2">
+            <div class="truncate">
+                <a href="${a.url}" target="_blank" class="text-blue-300 hover:text-blue-200 hover:underline">
+                    ${a.nombre}
+                </a>
+                <span class="text-gray-500">(${a.tamanoKb} KB)</span>
+            </div>
+            ${permitirEliminar ? `<button type="button" onclick="eliminarArchivoOrden('${encodeURIComponent(a.url)}')" class="text-red-400 hover:text-red-300" title="Eliminar archivo"><i class="fas fa-trash text-xs"></i></button>` : ''}
         </div>
     `).join('');
+}
+
+async function eliminarArchivoOrden(urlArchivoCodificado) {
+    const idOrden = parseInt(document.getElementById('id_orden').value || '0');
+    const urlArchivo = decodeURIComponent(urlArchivoCodificado || "");
+    if (!idOrden || !urlArchivo) return;
+
+    const confirmacion = await Swal.fire({
+        title: '¿Eliminar adjunto?',
+        text: 'Esta acción quitará el archivo de la orden.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+        const response = await fetch('/Orden/EliminarArchivoOrden', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idOrden, url: urlArchivo })
+        });
+
+        const result = await response.json();
+        mostrarAlerta(result.mensaje, result.tipo || 'info');
+
+        if (result.tipo === 'success') {
+            await cargarArchivosOrden(idOrden, 'lista_archivos_orden');
+            const idEstado = parseInt(document.getElementById('id_orden_estado')?.value || '0');
+            if (idEstado === idOrden) {
+                await cargarArchivosOrden(idOrden, 'lista_archivos_estado');
+            }
+        }
+    } catch (error) {
+        console.error('Error al eliminar archivo:', error);
+        mostrarAlerta('Error al eliminar archivo adjunto', 'error');
+    }
 }
 
 async function cargarArchivosOrden(idOrden, idContenedor) {
