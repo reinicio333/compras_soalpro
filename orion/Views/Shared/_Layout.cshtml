@@ -195,6 +195,19 @@
                         </li>
 
                     }
+
+                    @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR"))
+                    {
+                        <li>
+                            <a asp-controller="TipoCambio" asp-action="Index" class="flex items-center p-2 rounded-lg text-white hover:bg-gray-700 group">
+                                <svg class="shrink-0 w-5 h-5 transition duration-75 text-gray-400 group-hover:text-white" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 1a11 11 0 1 0 11 11A11.013 11.013 0 0 0 12 1Zm1 17.93V20a1 1 0 0 1-2 0v-1.07A4.002 4.002 0 0 1 8 15a1 1 0 0 1 2 0 2 2 0 1 0 2-2 4 4 0 1 1 4-4 1 1 0 0 1-2 0 2 2 0 1 0-2 2 4 4 0 0 1 1 7.93Z" />
+                                </svg>
+                                <span class="flex-1 ms-3 whitespace-nowrap">TIPO DE CAMBIO</span>
+                            </a>
+                        </li>
+                    }
+
                     @if (User.IsInRole("COMPRAS") || User.IsInRole("ADMINISTRADOR") || User.IsInRole("PLANTA") || User.IsInRole("ALMACEN") || User.IsInRole("GERENCIA"))
                     {
 

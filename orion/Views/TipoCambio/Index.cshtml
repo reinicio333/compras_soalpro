@@ -1,0 +1,73 @@
+<div class="space-y-6">
+    <div class="bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3">
+                <div class="p-3 bg-emerald-600 rounded-lg">
+                    <i class="fas fa-dollar-sign text-white text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Tipo de Cambio por Fecha</h1>
+                    <p class="text-gray-400 text-sm">Administra rangos de fecha para el valor del dólar</p>
+                </div>
+            </div>
+
+            <button id="btnNuevoTipoCambio" type="button"
+                    class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-emerald-600 border border-transparent rounded-lg hover:bg-emerald-700 focus:z-10 focus:ring-4 focus:ring-emerald-300 transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                <i class="fas fa-plus mr-2"></i>
+                Nuevo Rango
+            </button>
+        </div>
+    </div>
+
+    <div class="container-fluid mt-5" style="padding-top:0">
+        <div id="myGridTipoCambio" class="ag-theme-quartz-dark" style="height:65vh"></div>
+    </div>
+</div>
+
+<div id="modalTipoCambio" tabindex="-1" aria-hidden="true"
+     class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-full max-h-full bg-black bg-opacity-50">
+    <div class="relative p-4 w-full max-w-xl max-h-full">
+        <div class="relative bg-gray-800 rounded-lg shadow border border-gray-700">
+            <div class="flex items-center justify-between p-4 border-b border-gray-700">
+                <h3 id="titleModalTipoCambio" class="text-lg font-semibold text-white">NUEVO TIPO DE CAMBIO</h3>
+                <button type="button" onclick="cerrarModalTipoCambio()"
+                        class="text-gray-400 bg-transparent hover:bg-gray-600 hover:text-white rounded-lg text-sm w-8 h-8 ms-auto inline-flex justify-center items-center transition-colors">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+
+            <form id="formularioTipoCambio" class="p-4 space-y-4">
+                <input type="hidden" id="id" name="id" />
+                <div>
+                    <label for="fechaInicio" class="block mb-2 text-sm font-medium text-white">Fecha Inicio *</label>
+                    <input type="date" id="fechaInicio" name="fechaInicio" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                </div>
+                <div>
+                    <label for="fechaFin" class="block mb-2 text-sm font-medium text-white">Fecha Fin *</label>
+                    <input type="date" id="fechaFin" name="fechaFin" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                </div>
+                <div>
+                    <label for="valor" class="block mb-2 text-sm font-medium text-white">Tipo de Cambio *</label>
+                    <input type="number" id="valor" name="valor" min="0" step="0.0001" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5" placeholder="Ejemplo: 6.96">
+                </div>
+                <div>
+                    <label for="estado" class="block mb-2 text-sm font-medium text-white">Estado *</label>
+                    <select id="estado" name="estado" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg block w-full p-2.5">
+                        <option value="1">ACTIVO</option>
+                        <option value="0">INACTIVO</option>
+                    </select>
+                </div>
+
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="cerrarModalTipoCambio()" class="py-2.5 px-5 text-sm font-medium text-gray-300 bg-gray-700 rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white">Cancelar</button>
+                    <button type="submit" class="text-white inline-flex items-center bg-emerald-700 hover:bg-emerald-800 font-medium rounded-lg text-sm px-5 py-2.5 text-center">
+                        <i class="fas fa-save mr-2"></i>Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="~/lib/ag_grid/ag-grid.min.js"></script>
+<script src="~/js/pages/tipoCambio.js"></script>
