@@ -165,6 +165,22 @@ namespace orion.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> GetAreasCorrespondencia()
+        {
+            var areas = await _context.AreasCorrespondencia
+                .Where(a => a.Estado == null || a.Estado == "A")
+                .OrderBy(a => a.Nombre)
+                .Select(a => new
+                {
+                    id = a.Id,
+                    nombre = a.Nombre
+                })
+                .ToListAsync();
+
+            return Json(areas);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> GetAprobadores()
         {
             var aprobadores = await _context.Usuarios
@@ -248,7 +264,9 @@ namespace orion.Controllers
                     Telefono = datos.Telefono,
                     NomContacto = datos.Contacto,
                     Aprobador = aprobadorId,
-                    EsImportacion = datos.EsImportacion
+                    EsImportacion = datos.EsImportacion,
+                    IdAreaCorrespondencia = datos.IdAreaCorrespondencia,
+                    CorrespondeAsc = datos.CorrespondeAsc
                 };
 
                 _context.OrdenCompra.Add(orden);
@@ -377,6 +395,8 @@ namespace orion.Controllers
                         orden.Telefono,
                         orden.NomContacto,
                         orden.Aprobador,
+                        orden.IdAreaCorrespondencia,
+                        orden.CorrespondeAsc,
                         Estado = orden.Estado?.Estado
                     },
                     productos
@@ -431,6 +451,8 @@ namespace orion.Controllers
                 orden.RazonSocial = datos.Facturacion?.Razon;
                 orden.Nit = datos.Facturacion?.Nit;
                 orden.EsImportacion = datos.EsImportacion; 
+                orden.IdAreaCorrespondencia = datos.IdAreaCorrespondencia;
+                orden.CorrespondeAsc = datos.CorrespondeAsc;
                 orden.Telefono = datos.Telefono;
                 orden.NomContacto = datos.NomContacto;
                 orden.Aprobador = aprobadorId;
@@ -892,6 +914,8 @@ namespace orion.Controllers
                 RevisadoPor = revisadoPor,
                 Aprobador = aprobadorTexto,
                 Rol = "",
+                IdAreaCorrespondencia = orden.IdAreaCorrespondencia ?? 0,
+                CorrespondeAsc = orden.CorrespondeAsc ?? "",
                 Referencia = orden.Referencia,
                 Tc = await ObtenerTipoCambioTextoPorFechaAsync(orden.Fecha ?? DateTime.Now),
                 Cabecera = new CabeceraDto
@@ -1164,6 +1188,8 @@ namespace orion.Controllers
         public string AutorizadoPor { get; set; }
         public string RevisadoPor { get; set; }
         public string Aprobador { get; set; }
+        public int IdAreaCorrespondencia { get; set; }
+        public string CorrespondeAsc { get; set; }
         public CabeceraDto Cabecera { get; set; }
         public EntregaDto Entrega { get; set; }
         public PagoDto Pago { get; set; }

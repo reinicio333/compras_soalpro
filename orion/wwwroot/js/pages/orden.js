@@ -215,6 +215,7 @@ document.addEventListener('DOMContentLoaded', function () {
     cargarProveedores();
     cargarEstados();
     cargarAprobadores();
+    cargarAreasCorrespondencia();
 
     document.getElementById('es_importacion').addEventListener('change', function () {
         const texto = document.getElementById('tipo_orden_texto');
@@ -327,6 +328,29 @@ async function cargarAprobadores() {
         seleccionarAprobadorPorDefecto();
     } catch (error) {
         console.error('Error al cargar aprobadores:', error);
+    }
+}
+
+async function cargarAreasCorrespondencia() {
+    try {
+        const response = await fetch('/Orden/GetAreasCorrespondencia');
+        const areas = await response.json();
+        const select = document.getElementById('corresponde_asc');
+
+        if (!select) return;
+
+        select.innerHTML = '<option value="">Seleccione...</option>';
+
+        if (Array.isArray(areas)) {
+            areas.forEach(a => {
+                const option = document.createElement('option');
+                option.value = a.id;
+                option.textContent = a.nombre;
+                select.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Error al cargar áreas de correspondencia:', error);
     }
 }
 
@@ -554,7 +578,8 @@ function recopilarDatos() {
         telefono: document.getElementById('tel_prov').value,
         contacto: document.getElementById('contacto_nom').value,
         solicitante: document.getElementById('solicitante_orden').value,
-        rol: document.getElementById('rol_orden').value,
+        idAreaCorrespondencia: parseInt(document.getElementById('corresponde_asc').value) || 0,
+        correspondeAsc: document.getElementById('corresponde_asc').selectedOptions[0]?.textContent || '',
         referencia: document.getElementById('referencia_orden').value,
         aprobador: document.getElementById('aprobador_orden').value,
         tc: tipoCambioActual,
@@ -609,6 +634,11 @@ function recopilarDatos() {
             });
         }
     });
+
+    if (!datos.idAreaCorrespondencia) {
+        mostrarAlerta('Debe seleccionar CORRESPONDE A.S.C.', 'warning');
+        return null;
+    }
 
     if (!datos.aprobador) {
         mostrarAlerta('Debe seleccionar un APROVADOR', 'warning');
@@ -677,6 +707,7 @@ async function editarOrden(id) {
         document.getElementById('tel_prov').value = data.orden.telefono || '';
         document.getElementById('contacto_nom').value = data.orden.nomContacto || '';
         document.getElementById('aprobador_orden').value = data.orden.aprobador || '';
+        document.getElementById('corresponde_asc').value = data.orden.idAreaCorrespondencia || '';
 
         if (data.orden.formaPago) {
             const radio = document.querySelector(`input[name="forma_pago"][value="${data.orden.formaPago}"]`);
@@ -862,6 +893,7 @@ function limpiarFormulario() {
     document.getElementById('contacto_nom').value = '';
     document.getElementById('referencia_orden').value = '';
     document.getElementById('aprobador_orden').value = '';
+    document.getElementById('corresponde_asc').value = '';
     document.getElementById('id_solicitud_actual').value = '';
     document.getElementById('observacion').value = '';
     document.getElementById('es_importacion').checked = false;
