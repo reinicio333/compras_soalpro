@@ -666,7 +666,6 @@ async function guardarOrden() {
     if (!datos) return;
 
     const url = datos.idOrden > 0 ? '/Orden/ActualizarOrden' : '/Orden/GuardarOrden';
-    const accion = datos.idOrden > 0 ? 'actualizada' : 'guardada';
 
     try {
         const response = await fetch(url, {
@@ -969,9 +968,28 @@ function validarArchivosSeleccionados() {
     }
 }
 
+
+function obtenerIdOrdenActual() {
+    const id = parseInt(document.getElementById('id_orden')?.value || '0');
+    return Number.isNaN(id) ? 0 : id;
+}
+
+async function subirArchivosSeleccionados() {
+    const idOrden = obtenerIdOrdenActual();
+    if (!idOrden) {
+        mostrarAlerta('Primero guarde la orden para poder subir adjuntos', 'warning');
+        return;
+    }
+
+    await subirArchivosOrden(idOrden);
+}
+
 async function subirArchivosOrden(idOrden) {
     const input = document.getElementById('archivos_orden');
-    if (!input || !input.files || input.files.length === 0) return;
+    if (!input || !input.files || input.files.length === 0) {
+        mostrarAlerta('Seleccione al menos un archivo para subir', 'warning');
+        return;
+    }
 
     const formData = new FormData();
     formData.append('idOrden', idOrden);
@@ -1016,15 +1034,15 @@ function renderizarListaArchivos(idContenedor, archivos) {
                 </a>
                 <span class="text-gray-500">(${a.tamanoKb} KB)</span>
             </div>
-            ${permitirEliminar ? `<button type="button" onclick="eliminarArchivoOrden('${encodeURIComponent(a.url)}')" class="text-red-400 hover:text-red-300" title="Eliminar archivo"><i class="fas fa-trash text-xs"></i></button>` : ''}
+            ${permitirEliminar ? `<button type="button" onclick="eliminarArchivoOrden('${encodeURIComponent(a.archivo || '')}')" class="text-red-400 hover:text-red-300" title="Eliminar archivo"><i class="fas fa-trash text-xs"></i></button>` : ''}
         </div>
     `).join('');
 }
 
-async function eliminarArchivoOrden(urlArchivoCodificado) {
+async function eliminarArchivoOrden(archivoCodificado) {
     const idOrden = parseInt(document.getElementById('id_orden').value || '0');
-    const urlArchivo = decodeURIComponent(urlArchivoCodificado || "");
-    if (!idOrden || !urlArchivo) return;
+    const archivo = decodeURIComponent(archivoCodificado || "");
+    if (!idOrden || !archivo) return;
 
     const confirmacion = await Swal.fire({
         title: '¿Eliminar adjunto?',
@@ -1041,7 +1059,7 @@ async function eliminarArchivoOrden(urlArchivoCodificado) {
         const response = await fetch('/Orden/EliminarArchivoOrden', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idOrden, url: urlArchivo })
+            body: JSON.stringify({ idOrden, archivo })
         });
 
         const result = await response.json();

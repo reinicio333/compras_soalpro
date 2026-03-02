@@ -437,6 +437,13 @@
                             <input type="file" id="archivos_orden" multiple
                                    accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.xls,.xlsx,.doc,.docx"
                                    class="block w-full text-xs text-gray-300 border border-gray-600 rounded-lg bg-gray-700 p-1.5">
+                            <div class="mt-2 flex items-center gap-2">
+                                <button type="button" onclick="subirArchivosSeleccionados()"
+                                        class="py-1 px-3 text-xs font-medium text-white bg-blue-700 rounded hover:bg-blue-800 transition-colors">
+                                    <i class="fas fa-upload mr-1"></i>Subir archivos
+                                </button>
+                                <span class="text-[11px] text-gray-400">Puedes seleccionar varios archivos y subirlos juntos.</span>
+                            </div>
                             <p class="text-[11px] text-gray-400 mt-1">Formatos: imágenes, PDF, Excel y Word.</p>
                         </div>
                         <div>

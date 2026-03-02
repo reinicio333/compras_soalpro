@@ -388,7 +388,7 @@ namespace orion.Controllers
                     archivosActuales.Add(new ArchivoOrdenItemDto
                     {
                         Nombre = Path.GetFileName(archivo.FileName),
-                        Url = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(nombreFinal)}",
+                        Archivo = nombreFinal,
                         TamanoKb = Math.Round(archivo.Length / 1024m, 2),
                         Fecha = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
                     });
@@ -416,7 +416,28 @@ namespace orion.Controllers
                 }
 
                 var archivos = JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
-                return Json(archivos.OrderByDescending(a => ParseFechaOrden(a.Fecha)).ToList());
+
+                var respuesta = archivos
+                    .Select(a =>
+                    {
+                        var archivoGuardado = !string.IsNullOrWhiteSpace(a.Archivo)
+                            ? a.Archivo
+                            : Path.GetFileName(Uri.UnescapeDataString(a.Url ?? string.Empty));
+
+                        return new
+                        {
+                            nombre = a.Nombre,
+                            archivo = archivoGuardado,
+                            url = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(archivoGuardado)}",
+                            tamanoKb = a.TamanoKb,
+                            fecha = a.Fecha
+                        };
+                    })
+                    .Where(a => !string.IsNullOrWhiteSpace(a.archivo))
+                    .OrderByDescending(a => ParseFechaOrden(a.fecha))
+                    .ToList();
+
+                return Json(respuesta);
             }
             catch (Exception ex)
             {
@@ -429,7 +450,7 @@ namespace orion.Controllers
         {
             try
             {
-                if (datos == null || datos.IdOrden <= 0 || string.IsNullOrWhiteSpace(datos.Url))
+                if (datos == null || datos.IdOrden <= 0 || string.IsNullOrWhiteSpace(datos.Archivo))
                 {
                     return Json(new { tipo = "warning", mensaje = "Datos inválidos para eliminar archivo" });
                 }
@@ -441,7 +462,14 @@ namespace orion.Controllers
                 }
 
                 var archivos = JsonSerializer.Deserialize<List<ArchivoOrdenItemDto>>(orden.RutasArchivos) ?? new List<ArchivoOrdenItemDto>();
-                var archivoAEliminar = archivos.FirstOrDefault(a => string.Equals(a.Url, datos.Url, StringComparison.OrdinalIgnoreCase));
+                                var archivoAEliminar = archivos.FirstOrDefault(a =>
+                {
+                    var archivoGuardado = !string.IsNullOrWhiteSpace(a.Archivo)
+                        ? a.Archivo
+                        : Path.GetFileName(Uri.UnescapeDataString(a.Url ?? string.Empty));
+
+                    return string.Equals(archivoGuardado, datos.Archivo, StringComparison.OrdinalIgnoreCase);
+                });
 
                 if (archivoAEliminar == null)
                 {
@@ -452,7 +480,7 @@ namespace orion.Controllers
                 orden.RutasArchivos = archivos.Count == 0 ? null : JsonSerializer.Serialize(archivos);
                 await _context.SaveChangesAsync();
 
-                var rutaLocal = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", datos.Url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar));
+                var rutaLocal = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "ordenes", datos.IdOrden.ToString(), datos.Archivo);
                 if (System.IO.File.Exists(rutaLocal))
                 {
                     System.IO.File.Delete(rutaLocal);
@@ -1331,7 +1359,8 @@ namespace orion.Controllers
     public class ArchivoOrdenItemDto
     {
         public string Nombre { get; set; }
-        public string Url { get; set; }
+        public string? Url { get; set; }
+        public string? Archivo { get; set; }
         public decimal TamanoKb { get; set; }
         public string Fecha { get; set; }
     }
@@ -1339,7 +1368,7 @@ namespace orion.Controllers
     public class EliminarArchivoOrdenDto
     {
         public int IdOrden { get; set; }
-        public string Url { get; set; }
+        public string Archivo { get; set; }
     }
 
     public class OrdenCompraDto
