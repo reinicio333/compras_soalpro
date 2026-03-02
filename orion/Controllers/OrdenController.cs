@@ -110,8 +110,10 @@ namespace orion.Controllers
                             .Select(h => h.FechaCambio)
                             .FirstOrDefault(),
                         TodosEnStock = _context.SolicitudPrecio
-                            .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
-                            .All(sp => sp.EsStock == true),
+                            .Any(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                            && _context.SolicitudPrecio
+                                .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                                .All(sp => sp.EsStock == true),
                         Proveedor = _context.SolicitudPrecio
                             .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
                             .Join(_context.DetalleSolicitudes,
@@ -157,6 +159,22 @@ namespace orion.Controllers
                 tipo = usuario?.IdTipo ?? "",
                 area = usuario?.Area ?? ""
             });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetAprobadores()
+        {
+            var aprobadores = await _context.Usuarios
+                .Where(u => u.IdTipo == "GERENCIA")
+                .OrderBy(u => u.NomCompleto)
+                .Select(u => new
+                {
+                    usuario = u.Nombre,
+                    nombre = string.IsNullOrWhiteSpace(u.NomCompleto) ? u.Nombre : u.Nombre + " - " + u.NomCompleto
+                })
+                .ToListAsync();
+
+            return Json(aprobadores);
         }
 
         [HttpGet]
@@ -219,6 +237,7 @@ namespace orion.Controllers
                     Nit = datos.Facturacion?.Nit,
                     Telefono = datos.Telefono,
                     NomContacto = datos.Contacto,
+                    Aprobador = datos.Aprobador,
                     EsImportacion = datos.EsImportacion
                 };
 
@@ -347,6 +366,7 @@ namespace orion.Controllers
                         orden.IdEstadoSolicitud,
                         orden.Telefono,
                         orden.NomContacto,
+                        orden.Aprobador,
                         Estado = orden.Estado?.Estado
                     },
                     productos
@@ -397,6 +417,7 @@ namespace orion.Controllers
                 orden.EsImportacion = datos.EsImportacion; 
                 orden.Telefono = datos.Telefono;
                 orden.NomContacto = datos.NomContacto;
+                orden.Aprobador = datos.Aprobador;
 
                 if (orden.IdSolicitudPrecio == null)
                 {
@@ -828,6 +849,7 @@ namespace orion.Controllers
                 ElaboradoPor = !string.IsNullOrEmpty(solicitantesTextoAutor) ? solicitantesTextoAutor : elaboradoPor,
                 AutorizadoPor = autorizadoPor,
                 RevisadoPor = revisadoPor,
+                Aprobador = orden.Aprobador ?? "",
                 Rol = "",
                 Referencia = orden.Referencia,
                 Tc = orden.TipoCambio ?? "6.96",
@@ -1064,6 +1086,7 @@ namespace orion.Controllers
         public string ElaboradoPor { get; set; }
         public string AutorizadoPor { get; set; }
         public string RevisadoPor { get; set; }
+        public string Aprobador { get; set; }
         public CabeceraDto Cabecera { get; set; }
         public EntregaDto Entrega { get; set; }
         public PagoDto Pago { get; set; }
