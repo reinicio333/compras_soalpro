@@ -29,6 +29,7 @@
         public virtual DbSet<EstadosOrden> EstadosOrden { get; set; }
         public virtual DbSet<HistorialEstadoOrden> HistorialEstadoOrden { get; set; }
         public virtual DbSet<TipoCambioFecha> TipoCambioFecha { get; set; }
+        public virtual DbSet<AreaCorrespondencia> AreasCorrespondencia { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -320,6 +321,13 @@
                 .IsUnicode(false)
                 .HasColumnName("aprobador");
 
+            entity.Property(e => e.IdAreaCorrespondencia).HasColumnName("id_area_correspondencia");
+
+            entity.Property(e => e.CorrespondeAsc)
+                .HasMaxLength(150)
+                .IsUnicode(false)
+                .HasColumnName("corresponde_asc");
+
             // Relaciones
             entity.HasOne(e => e.SolicitudPrecio)
                 .WithMany(s => s.OrdenesCompra)
@@ -331,6 +339,29 @@
                 .HasForeignKey(e => e.IdEstadoSolicitud)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(e => e.AreaCorrespondencia)
+                .WithMany(a => a.OrdenesCompra)
+                .HasForeignKey(e => e.IdAreaCorrespondencia)
+                .OnDelete(DeleteBehavior.Restrict);
+
+        });
+
+        modelBuilder.Entity<AreaCorrespondencia>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("areas_correspondencia");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+
+            entity.Property(e => e.Nombre)
+                .HasMaxLength(150)
+                .IsUnicode(false)
+                .HasColumnName("nombre");
+
+            entity.Property(e => e.Estado)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .HasColumnName("estado");
         });
 
         // Configuración para SolicitudPrecio
