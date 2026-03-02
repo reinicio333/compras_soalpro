@@ -41,5 +41,6 @@ namespace orion.Models
         public virtual SolicitudPrecio? SolicitudPrecio { get; set; }
         public virtual EstadosOrden? Estado { get; set; }
         public virtual AreaCorrespondencia? AreaCorrespondencia { get; set; }
+        public virtual ICollection<ArchivoOrden> Archivos { get; set; } = new List<ArchivoOrden>();
     }
 }

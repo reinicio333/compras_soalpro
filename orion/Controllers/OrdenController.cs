@@ -375,10 +375,28 @@ namespace orion.Controllers
                     var nombreFinal = $"{nombreLimpio}_{DateTime.Now:yyyyMMddHHmmssfff}{extension}";
                     var rutaDestino = Path.Combine(carpetaOrden, nombreFinal);
 
-                    await using var stream = new FileStream(rutaDestino, FileMode.Create);
-                    await archivo.CopyToAsync(stream);
+                    await using (var stream = new FileStream(rutaDestino, FileMode.Create))
+                    {
+                        await archivo.CopyToAsync(stream);
+                    }
+
+                    var rutaRelativa = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(nombreFinal)}";
+                    var adjunto = new ArchivoOrden
+                    {
+                        IdOrden = idOrden,
+                        NombreOriginal = Path.GetFileName(archivo.FileName),
+                        NombreGuardado = nombreFinal,
+                        RutaRelativa = rutaRelativa,
+                        Extension = extension,
+                        TamanoBytes = archivo.Length,
+                        FechaCreacion = DateTime.Now,
+                        Usuario = User.Identity?.Name ?? "Sistema"
+                    };
+
+                    _context.ArchivosOrden.Add(adjunto);
                 }
 
+                await _context.SaveChangesAsync();
                 return Json(new { tipo = "success", mensaje = "Archivos subidos correctamente" });
             }
             catch (Exception ex)
@@ -398,33 +416,17 @@ namespace orion.Controllers
                     return Json(new List<object>());
                 }
 
-                var carpetaOrden = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "ordenes", idOrden.ToString());
-                if (!Directory.Exists(carpetaOrden))
-                {
-                    return Json(new List<object>());
-                }
-
-                var archivos = Directory.GetFiles(carpetaOrden)
-                    .Select(ruta =>
-                    {
-                        var info = new FileInfo(ruta);
-                        return new
-                        {
-                            Nombre = info.Name,
-                            Url = $"/uploads/ordenes/{idOrden}/{Uri.EscapeDataString(info.Name)}",
-                            TamanoKb = Math.Round(info.Length / 1024m, 2),
-                            FechaOrden = info.LastWriteTime
-                        };
-                    })
-                    .OrderByDescending(a => a.FechaOrden)
+                var archivos = await _context.ArchivosOrden
+                    .Where(a => a.IdOrden == idOrden)
+                    .OrderByDescending(a => a.FechaCreacion)
                     .Select(a => new
                     {
-                        a.Nombre,
-                        a.Url,
-                        a.TamanoKb,
-                        Fecha = a.FechaOrden.ToString("dd/MM/yyyy HH:mm")
+                        nombre = a.NombreOriginal,
+                        url = a.RutaRelativa,
+                        tamanoKb = Math.Round(a.TamanoBytes / 1024m, 2),
+                        fecha = a.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
                     })
-                    .ToList();
+                    .ToListAsync();
 
                 return Json(archivos);
             }
