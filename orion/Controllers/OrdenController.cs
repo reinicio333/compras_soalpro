@@ -893,7 +893,7 @@ namespace orion.Controllers
                 Aprobador = aprobadorTexto,
                 Rol = "",
                 Referencia = orden.Referencia,
-                Tc = string.IsNullOrWhiteSpace(orden.TipoCambio) ? await ObtenerTipoCambioTextoPorFechaAsync(orden.Fecha ?? DateTime.Now) : orden.TipoCambio,
+                Tc = await ObtenerTipoCambioTextoPorFechaAsync(orden.Fecha ?? DateTime.Now),
                 Cabecera = new CabeceraDto
                 {
                     Observacion = orden.Observacion,
@@ -929,8 +929,10 @@ namespace orion.Controllers
         }
         private async Task<string> ObtenerTipoCambioTextoPorFechaAsync(DateTime fecha)
         {
+            var fechaConsulta = fecha.Date;
+
             var registro = await _context.TipoCambioFecha
-                .Where(t => t.Estado == "1" && fecha.Date >= t.FechaInicio.Date && fecha.Date <= t.FechaFin.Date)
+                .Where(t => (t.Estado == "1" || t.Estado == "ACTIVO") && t.FechaInicio <= fechaConsulta && t.FechaFin >= fechaConsulta)
                 .OrderByDescending(t => t.FechaInicio)
                 .FirstOrDefaultAsync();
 

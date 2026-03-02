@@ -68,11 +68,14 @@ namespace orion.Controllers
                     return Json(new { tipo = "warning", mensaje = "La fecha inicio no puede ser mayor a la fecha fin" });
                 }
 
+                var fechaInicio = model.FechaInicio.Date;
+                var fechaFin = model.FechaFin.Date;
+
                 var hayCruce = await _context.TipoCambioFecha.AnyAsync(t =>
                     t.Id != model.Id &&
-                    t.Estado == "1" &&
-                    model.FechaInicio.Date <= t.FechaFin.Date &&
-                    model.FechaFin.Date >= t.FechaInicio.Date);
+                    (t.Estado == "1" || t.Estado == "ACTIVO") &&
+                    fechaInicio <= t.FechaFin &&
+                    fechaFin >= t.FechaInicio);
 
                 if (hayCruce)
                 {
@@ -81,6 +84,8 @@ namespace orion.Controllers
 
                 if (model.Id == 0)
                 {
+                    model.FechaInicio = fechaInicio;
+                    model.FechaFin = fechaFin;
                     model.Estado ??= "1";
                     _context.TipoCambioFecha.Add(model);
                     await _context.SaveChangesAsync();
@@ -93,8 +98,8 @@ namespace orion.Controllers
                     return Json(new { tipo = "error", mensaje = "Registro no encontrado" });
                 }
 
-                actual.FechaInicio = model.FechaInicio;
-                actual.FechaFin = model.FechaFin;
+                actual.FechaInicio = fechaInicio;
+                actual.FechaFin = fechaFin;
                 actual.Valor = model.Valor;
                 actual.Estado = string.IsNullOrWhiteSpace(model.Estado) ? "1" : model.Estado;
 
@@ -130,8 +135,10 @@ namespace orion.Controllers
                 fechaConsulta = DateTime.Now;
             }
 
+            var fechaFiltro = fechaConsulta.Date;
+
             var registro = await _context.TipoCambioFecha
-                .Where(t => t.Estado == "1" && fechaConsulta.Date >= t.FechaInicio.Date && fechaConsulta.Date <= t.FechaFin.Date)
+                .Where(t => (t.Estado == "1" || t.Estado == "ACTIVO") && t.FechaInicio <= fechaFiltro && t.FechaFin >= fechaFiltro)
                 .OrderByDescending(t => t.FechaInicio)
                 .FirstOrDefaultAsync();
 
