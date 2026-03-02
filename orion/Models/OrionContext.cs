@@ -314,6 +314,11 @@
                 .IsUnicode(false)
                 .HasColumnName("nom_contacto");
 
+            entity.Property(e => e.Aprobador)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("aprobador");
+
             // Relaciones
             entity.HasOne(e => e.SolicitudPrecio)
                 .WithMany(s => s.OrdenesCompra)

@@ -33,6 +33,7 @@ namespace orion.Models
         public bool? EsImportacion { get; set; }
         public string? Telefono { get; set; }
         public string? NomContacto { get; set; }
+        public string? Aprobador { get; set; }
 
         // Propiedades de navegación
         public virtual SolicitudPrecio? SolicitudPrecio { get; set; }
