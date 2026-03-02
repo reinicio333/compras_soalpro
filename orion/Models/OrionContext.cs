@@ -28,6 +28,7 @@
         public virtual DbSet<DetalleSolicitudPrecio> DetalleSolicitudPrecio { get; set; }
         public virtual DbSet<EstadosOrden> EstadosOrden { get; set; }
         public virtual DbSet<HistorialEstadoOrden> HistorialEstadoOrden { get; set; }
+        public virtual DbSet<TipoCambioFecha> TipoCambioFecha { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -435,6 +436,23 @@
                 .WithMany()
                 .HasForeignKey(e => e.IdEstadoNuevo)
                 .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<TipoCambioFecha>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("tipo_cambio_fecha");
+
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.FechaInicio).HasColumnName("fecha_inicio");
+            entity.Property(e => e.FechaFin).HasColumnName("fecha_fin");
+            entity.Property(e => e.Valor)
+                .HasColumnType("decimal(20,4)")
+                .HasColumnName("valor");
+            entity.Property(e => e.Estado)
+                .HasMaxLength(1)
+                .IsUnicode(false)
+                .HasColumnName("estado");
         });
      
 
