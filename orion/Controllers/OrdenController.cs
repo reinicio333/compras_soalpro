@@ -48,8 +48,10 @@ namespace orion.Controllers
                 }
                 else if (usuarioActual?.IdTipo == "GERENCIA")
                 {
-                    // GERENCIA: ve todas pero solo las que estan en Pre autorización (estado 2)
-                    query = query.Where(o => o.IdEstadoSolicitud == 2);
+                    // GERENCIA: ve solo ordenes en Pre autorización (estado 2) asignadas al aprobador actual
+                    var idGerenteActual = usuarioActual.Id.ToString();
+                    query = query.Where(o => o.IdEstadoSolicitud == 2
+                        && (o.Aprobador == idGerenteActual || o.Aprobador == nombreUsuario));
                 }
                 else if (usuarioActual?.IdTipo == "PLANTA")
                 {
