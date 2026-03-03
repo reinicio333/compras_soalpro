@@ -74,16 +74,19 @@ namespace orion.Controllers
                         .Select(s => s.Id)
                         .ToListAsync();
 
-                    var idSolicitudPrecioDelArea = await _context.DetalleSolicitudes
+                    var idDetalleSolicitudesDelArea = await _context.DetalleSolicitudes
                         .Where(d => idSolicitudesDelArea.Contains(d.IdSolicitud))
-                        .Join(_context.SolicitudPrecio,
-                            d => d.Id.ToString(),
-                            sp => sp.IdDetalleSolicitud,
-                            (d, sp) => sp.IdSolicitudPrecio)
+                        .Select(d => d.Id.ToString())
+                        .ToListAsync();
+
+                    var idSolicitudPrecioDelAreaSinStock = await _context.SolicitudPrecio
+                        .Where(sp => idDetalleSolicitudesDelArea.Contains(sp.IdDetalleSolicitud)
+                            && sp.EsStock != true)
+                        .Select(sp => sp.IdSolicitudPrecio)
                         .Distinct()
                         .ToListAsync();
 
-                    query = query.Where(o => idSolicitudPrecioDelArea.Contains(o.IdSolicitudPrecio));
+                    query = query.Where(o => idSolicitudPrecioDelAreaSinStock.Contains(o.IdSolicitudPrecio));
                 }
                 else
                 {
