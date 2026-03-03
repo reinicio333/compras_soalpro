@@ -681,7 +681,7 @@ async function guardarOrden() {
 
         if (result.tipo === 'success') {
             const idOrden = datos.idOrden > 0 ? datos.idOrden : result.id;
-            await subirArchivosOrden(idOrden);
+            await subirArchivosOrden(idOrden, { silentIfEmpty: true });
             cerrarModalOrden();
             cargarOrdenes();
         }
@@ -981,13 +981,16 @@ async function subirArchivosSeleccionados() {
         return;
     }
 
-    await subirArchivosOrden(idOrden);
+    await subirArchivosOrden(idOrden, { silentIfEmpty: false });
 }
 
-async function subirArchivosOrden(idOrden) {
+async function subirArchivosOrden(idOrden, opciones = {}) {
+    const { silentIfEmpty = false } = opciones;
     const input = document.getElementById('archivos_orden');
     if (!input || !input.files || input.files.length === 0) {
-        mostrarAlerta('Seleccione al menos un archivo para subir', 'warning');
+        if (!silentIfEmpty) {
+            mostrarAlerta('Seleccione al menos un archivo para subir', 'warning');
+        }
         return;
     }
 
@@ -1032,7 +1035,7 @@ function renderizarListaArchivos(idContenedor, archivos) {
                 <a href="${a.url}" target="_blank" class="text-blue-300 hover:text-blue-200 hover:underline">
                     ${a.nombre}
                 </a>
-                <span class="text-gray-500">(${a.tamanoKb} KB)</span>
+                <span class="text-gray-500"> - ${a.fecha || ''}</span>
             </div>
             ${permitirEliminar ? `<button type="button" onclick="eliminarArchivoOrden('${encodeURIComponent(a.archivo || '')}')" class="text-red-400 hover:text-red-300" title="Eliminar archivo"><i class="fas fa-trash text-xs"></i></button>` : ''}
         </div>
