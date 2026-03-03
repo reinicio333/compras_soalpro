@@ -38,7 +38,8 @@ namespace orion.Controllers
                 List<Claim> claims = new List<Claim>()
                 {
                     new Claim(ClaimTypes.Name, usuario_encontrado.Nombre),
-                    new Claim(ClaimTypes.Role, usuario_encontrado.IdTipo)
+                    new Claim(ClaimTypes.Role, usuario_encontrado.IdTipo),
+                    new Claim("NomCompleto", usuario_encontrado.NomCompleto ?? usuario_encontrado.Nombre)
                 };
 
                 ClaimsIdentity claimsIdentity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);

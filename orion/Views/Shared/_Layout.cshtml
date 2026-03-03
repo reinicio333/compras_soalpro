@@ -114,6 +114,13 @@
 
                 <!-- User/Admin Menu -->
                 <div class="hidden md:flex items-center space-x-4 relative">
+
+                @{ 
+                    var nomCompleto = User.Claims.FirstOrDefault(c => c.Type == "NomCompleto")?.Value;
+                    var usuarioLogin = User.Identity?.Name ?? "Usuario";
+                    var nombreMostrar = string.IsNullOrWhiteSpace(nomCompleto) ? usuarioLogin : nomCompleto;
+                }
+
                     <div class="relative">
                         <button type="button" id="user-menu-button" data-dropdown-toggle="user-dropdown"
                                 class="flex items-center p-2 rounded-full bg-gray-800 focus:ring-2 focus:ring-gray-600">
@@ -125,13 +132,23 @@
                             </svg>
                         </button>
 
-                        <!-- Dropdown menú alineado a la derecha con margen  -->
+                        <!-- Dropdown de usuario -->
                         <div id="user-dropdown"
-                             class="hidden absolute right-[20px] mt-2 w-48 bg-white rounded-md shadow-lg py-2 z-50">
-                            <div class="px-4 py-3">
-                                <span class="block text-gray-900">@User.Identity.Name</span>
+                             class="hidden absolute right-0 top-12 w-72 bg-gray-800 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+                            <div class="px-4 py-4 bg-gradient-to-r from-gray-800 to-gray-700 border-b border-gray-700">
+                                <p class="text-sm font-semibold text-white truncate">@nombreMostrar</p>
+                                <p class="text-xs text-gray-300 truncate">@("@" + usuarioLogin)</p>
                             </div>
-                            <ul class="py-2">
+                            <ul class="py-2 text-sm text-gray-200">
+                                <li>
+                                    <button type="button"
+                                            data-modal-target="change-password-modal"
+                                            data-modal-toggle="change-password-modal"
+                                            class="w-full text-left flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 transition-colors">
+                                        <i class="fa-solid fa-key text-gray-400 w-4"></i>
+                                        <span>Cambiar contraseña</span>
+                                    </button>
+                                </li>
                                 <li>
                                     <button type="button"
                                             data-modal-target="change-password-modal"
@@ -142,7 +159,10 @@
                                 </li>
                                 <li>
                                     <a asp-controller="Home" asp-action="CerrarSesion"
-                                       class="block px-4 py-2 text-gray-700 hover:bg-gray-100">Cerrar Sesión</a>
+                                       class="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 transition-colors text-red-300 hover:text-red-200">
+                                        <i class="fa-solid fa-right-from-bracket text-red-300 w-4"></i>
+                                        <span>Cerrar sesión</span>
+                                    </a>
                                 </li>
                             </ul>
                         </div>
