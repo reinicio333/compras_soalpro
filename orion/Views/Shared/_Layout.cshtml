@@ -150,14 +150,6 @@
                                     </button>
                                 </li>
                                 <li>
-                                    <button type="button"
-                                            data-modal-target="change-password-modal"
-                                            data-modal-toggle="change-password-modal"
-                                            class="w-full text-left block px-4 py-2 text-gray-700 hover:bg-gray-100">
-                                        Cambiar Contraseña
-                                    </button>
-                                </li>
-                                <li>
                                     <a asp-controller="Home" asp-action="CerrarSesion"
                                        class="flex items-center gap-2 px-4 py-2.5 hover:bg-gray-700 transition-colors text-red-300 hover:text-red-200">
                                         <i class="fa-solid fa-right-from-bracket text-red-300 w-4"></i>
@@ -301,15 +293,30 @@
                         @Html.AntiForgeryToken()
                         <div>
                             <label for="contraseñaActual" class="block mb-2 text-sm font-medium text-gray-300">Contraseña actual</label>
-                            <input type="password" id="contraseñaActual" name="contraseñaActual" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" />
+                            <div class="relative">
+                                <input type="password" id="contraseñaActual" name="contraseñaActual" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pe-10" />
+                                <button type="button" class="toggle-password absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-white" data-target="contraseñaActual" aria-label="Mostrar u ocultar contraseña">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label for="nuevaContraseña" class="block mb-2 text-sm font-medium text-gray-300">Nueva contraseña</label>
-                            <input type="password" id="nuevaContraseña" name="nuevaContraseña" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" />
+                            <div class="relative">
+                                <input type="password" id="nuevaContraseña" name="nuevaContraseña" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pe-10" />
+                                <button type="button" class="toggle-password absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-white" data-target="nuevaContraseña" aria-label="Mostrar u ocultar contraseña">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div>
                             <label for="confirmarContraseña" class="block mb-2 text-sm font-medium text-gray-300">Confirmar nueva contraseña</label>
-                            <input type="password" id="confirmarContraseña" name="confirmarContraseña" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" />
+                            <div class="relative">
+                                <input type="password" id="confirmarContraseña" name="confirmarContraseña" required class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 pe-10" />
+                                <button type="button" class="toggle-password absolute inset-y-0 right-0 px-3 text-gray-400 hover:text-white" data-target="confirmarContraseña" aria-label="Mostrar u ocultar contraseña">
+                                    <i class="fa-regular fa-eye"></i>
+                                </button>
+                            </div>
                         </div>
                         <div class="flex justify-end gap-2 pt-2">
                             <button type="button" data-modal-hide="change-password-modal" class="py-2 px-4 text-sm font-medium text-gray-300 bg-gray-700 rounded-lg border border-gray-600 hover:bg-gray-600 hover:text-white">Cancelar</button>
@@ -339,6 +346,22 @@
                     mainContent.classList.toggle('sidebar-collapsed');
                 });
             }
+
+            document.querySelectorAll('.toggle-password').forEach(button => {
+                button.addEventListener('click', function () {
+                    const input = document.getElementById(this.dataset.target);
+                    if (!input) return;
+
+                    const icon = this.querySelector('i');
+                    const isPassword = input.type === 'password';
+                    input.type = isPassword ? 'text' : 'password';
+
+                    if (icon) {
+                        icon.classList.toggle('fa-eye', !isPassword);
+                        icon.classList.toggle('fa-eye-slash', isPassword);
+                    }
+                });
+            });
 
             // Función para toggle del submenu
             const currentPath = window.location.pathname.toLowerCase();
