@@ -367,12 +367,13 @@ async function verificarPermisos() {
     return data;
 }
 
-function abrirModalNuevaOrden() {
+async function abrirModalNuevaOrden() {
     ordenEditando = null;
     document.getElementById('titleModalOrden').innerHTML = '<i class="fas fa-plus mr-2 text-red-400"></i>NUEVA ORDEN DE COMPRA';
     document.getElementById('id_orden').value = '';
 
     limpiarFormulario();
+    await cargarProveedores();
     document.getElementById('razon_social_factura').value = 'SOALPRO S.R.L.';
     autocompletarNit('SOALPRO S.R.L.');
     const hoy = new Date();
@@ -1414,5 +1415,4 @@ function autocompletarNit(razon) {
     };
     document.getElementById('nit_factura').value = nits[razon] || '';
 }
-
 
