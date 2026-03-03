@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <Folder Include="Models\DB\" />
+    <Folder Include="wwwroot\uploads\ordenes\" />
   </ItemGroup>
 
 </Project>
