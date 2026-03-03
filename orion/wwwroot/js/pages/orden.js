@@ -5,6 +5,8 @@ let estadosDisponibles = [];
 let ordenEditando = null;
 window.esUsuarioPlanta = false;
 let tipoCambioActual = "6.96";
+const tiposArchivoPermitidos = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'xls', 'xlsx', 'doc', 'docx'];
+const maxArchivoBytes = 1024 * 1024;
 
 // Configuración del Grid
 const gridOptions = {
@@ -231,6 +233,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('fecha_orden').addEventListener('change', function () {
         actualizarTipoCambioPorFecha(this.value);
     });
+
+    const inputArchivos = document.getElementById('archivos_orden');
+    if (inputArchivos) {
+        inputArchivos.addEventListener('change', validarArchivosSeleccionados);
+    }
 });
 
 
@@ -373,6 +380,7 @@ function abrirModalNuevaOrden() {
     document.getElementById('fecha_orden').value = fechaLocal;
     actualizarTipoCambioPorFecha(fechaLocal);
     seleccionarAprobadorPorDefecto();
+    renderizarListaArchivos('lista_archivos_orden', []);
 
     const modal = new Modal(document.getElementById('modalOrden'));
     modal.show();
@@ -658,7 +666,6 @@ async function guardarOrden() {
     if (!datos) return;
 
     const url = datos.idOrden > 0 ? '/Orden/ActualizarOrden' : '/Orden/GuardarOrden';
-    const accion = datos.idOrden > 0 ? 'actualizada' : 'guardada';
 
     try {
         const response = await fetch(url, {
@@ -673,6 +680,8 @@ async function guardarOrden() {
         mostrarAlerta(result.mensaje, result.tipo);
 
         if (result.tipo === 'success') {
+            const idOrden = datos.idOrden > 0 ? datos.idOrden : result.id;
+            await subirArchivosOrden(idOrden, { silentIfEmpty: true });
             cerrarModalOrden();
             cargarOrdenes();
         }
@@ -695,6 +704,7 @@ async function editarOrden(id) {
         ordenEditando = data.orden;
         document.getElementById('titleModalOrden').innerHTML = '<i class="fas fa-edit mr-2 text-red-400"></i>EDITAR ORDEN DE COMPRA';
         document.getElementById('id_orden').value = data.orden.id;
+        await cargarArchivosOrden(data.orden.id, 'lista_archivos_orden');
 
         document.getElementById('fecha_orden').value = data.orden.fecha || '';
         tipoCambioActual = data.orden.tipoCambio || '6.96';
@@ -932,6 +942,159 @@ function cerrarModalOrden() {
     const modal = new Modal(document.getElementById('modalOrden'));
     modal.hide();
     limpiarFormulario();
+    const inputArchivos = document.getElementById('archivos_orden');
+    if (inputArchivos) inputArchivos.value = '';
+    renderizarListaArchivos('lista_archivos_orden', []);
+}
+
+
+function validarArchivosSeleccionados() {
+    const input = document.getElementById('archivos_orden');
+    if (!input || !input.files) return;
+
+    for (const archivo of input.files) {
+        const extension = (archivo.name.split('.').pop() || '').toLowerCase();
+        if (!tiposArchivoPermitidos.includes(extension)) {
+            mostrarAlerta(`El archivo ${archivo.name} no tiene un formato permitido`, 'warning');
+            input.value = '';
+            return;
+        }
+
+        if (archivo.size > maxArchivoBytes) {
+            mostrarAlerta(`El archivo ${archivo.name} supera 1MB`, 'warning');
+            input.value = '';
+            return;
+        }
+    }
+}
+
+
+function obtenerIdOrdenActual() {
+    const id = parseInt(document.getElementById('id_orden')?.value || '0');
+    return Number.isNaN(id) ? 0 : id;
+}
+
+async function subirArchivosSeleccionados() {
+    const idOrden = obtenerIdOrdenActual();
+    if (!idOrden) {
+        mostrarAlerta('Primero guarde la orden para poder subir adjuntos', 'warning');
+        return;
+    }
+
+    await subirArchivosOrden(idOrden, { silentIfEmpty: false });
+}
+
+async function subirArchivosOrden(idOrden, opciones = {}) {
+    const { silentIfEmpty = false } = opciones;
+    const input = document.getElementById('archivos_orden');
+    if (!input || !input.files || input.files.length === 0) {
+        if (!silentIfEmpty) {
+            mostrarAlerta('Seleccione al menos un archivo para subir', 'warning');
+        }
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('idOrden', idOrden);
+    Array.from(input.files).forEach(archivo => formData.append('archivos', archivo));
+
+    try {
+        const response = await fetch('/Orden/SubirArchivosOrden', {
+            method: 'POST',
+            body: formData
+        });
+        const result = await response.json();
+
+        if (result.tipo !== 'success') {
+            mostrarAlerta(result.mensaje || 'No se pudieron subir los archivos', result.tipo || 'warning');
+            return;
+        }
+
+        input.value = '';
+        await cargarArchivosOrden(idOrden, 'lista_archivos_orden');
+    } catch (error) {
+        console.error('Error al subir archivos:', error);
+        mostrarAlerta('Error al subir archivos adjuntos', 'error');
+    }
+}
+
+function renderizarListaArchivos(idContenedor, archivos) {
+    const contenedor = document.getElementById(idContenedor);
+    if (!contenedor) return;
+
+    if (!Array.isArray(archivos) || archivos.length === 0) {
+        contenedor.innerHTML = '<span class="text-gray-400">Sin archivos adjuntos</span>';
+        return;
+    }
+
+    const permitirEliminar = idContenedor === 'lista_archivos_orden';
+
+    contenedor.innerHTML = archivos.map(a => `
+        <div class="flex items-center justify-between gap-2">
+            <div class="truncate">
+                <a href="${a.url}" target="_blank" class="text-blue-300 hover:text-blue-200 hover:underline">
+                    ${a.nombre}
+                </a>
+                <span class="text-gray-500"> - ${a.fecha || ''}</span>
+            </div>
+            ${permitirEliminar ? `<button type="button" onclick="eliminarArchivoOrden('${encodeURIComponent(a.archivo || '')}')" class="text-red-400 hover:text-red-300" title="Eliminar archivo"><i class="fas fa-trash text-xs"></i></button>` : ''}
+        </div>
+    `).join('');
+}
+
+async function eliminarArchivoOrden(archivoCodificado) {
+    const idOrden = parseInt(document.getElementById('id_orden').value || '0');
+    const archivo = decodeURIComponent(archivoCodificado || "");
+    if (!idOrden || !archivo) return;
+
+    const confirmacion = await Swal.fire({
+        title: '¿Eliminar adjunto?',
+        text: 'Esta acción quitará el archivo de la orden.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar'
+    });
+
+    if (!confirmacion.isConfirmed) return;
+
+    try {
+        const response = await fetch('/Orden/EliminarArchivoOrden', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idOrden, archivo })
+        });
+
+        const result = await response.json();
+        mostrarAlerta(result.mensaje, result.tipo || 'info');
+
+        if (result.tipo === 'success') {
+            await cargarArchivosOrden(idOrden, 'lista_archivos_orden');
+            const idEstado = parseInt(document.getElementById('id_orden_estado')?.value || '0');
+            if (idEstado === idOrden) {
+                await cargarArchivosOrden(idOrden, 'lista_archivos_estado');
+            }
+        }
+    } catch (error) {
+        console.error('Error al eliminar archivo:', error);
+        mostrarAlerta('Error al eliminar archivo adjunto', 'error');
+    }
+}
+
+async function cargarArchivosOrden(idOrden, idContenedor) {
+    if (!idOrden) {
+        renderizarListaArchivos(idContenedor, []);
+        return;
+    }
+
+    try {
+        const response = await fetch(`/Orden/ObtenerArchivosOrden?idOrden=${idOrden}`);
+        const data = await response.json();
+        renderizarListaArchivos(idContenedor, Array.isArray(data) ? data : []);
+    } catch (error) {
+        console.error('Error al cargar archivos:', error);
+        renderizarListaArchivos(idContenedor, []);
+    }
 }
 
 
@@ -1015,6 +1178,7 @@ async function verEstadoOrden(id) {
             document.getElementById('iframePDFEstado').src = url;
             document.getElementById('numero_orden_modal').textContent = id;
             document.getElementById('id_orden_estado').value = id;
+            await cargarArchivosOrden(id, 'lista_archivos_estado');
 
             const infoSolicitud = document.getElementById('info_solicitud_vinculada');
             const solicitudesUnicas = [...new Set(dataOrden.productos.map(p => p.idSolicitud))];
