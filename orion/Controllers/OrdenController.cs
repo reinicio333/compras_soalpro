@@ -593,6 +593,15 @@ namespace orion.Controllers
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
+                var productosValidos = (datos.Productos ?? new List<ProductoOrdenDto>())
+                    .Where(p => p.IdDetalleSolicitud > 0)
+                    .ToList();
+
+                if (!productosValidos.Any())
+                {
+                    return Json(new { tipo = "warning", mensaje = "Debe mantener al menos un producto válido para actualizar la orden" });
+                }
+
                 var orden = await _context.OrdenCompra
                     .FirstOrDefaultAsync(o => o.Id == datos.IdOrden);
 
@@ -632,7 +641,9 @@ namespace orion.Controllers
                 orden.IdAreaCorrespondencia = datos.IdAreaCorrespondencia;
                 orden.CorrespondeAsc = datos.CorrespondeAsc;
                 orden.Telefono = datos.Telefono;
-                orden.NomContacto = datos.NomContacto;
+                orden.NomContacto = !string.IsNullOrWhiteSpace(datos.Contacto)
+                    ? datos.Contacto
+                    : datos.NomContacto;
                 orden.Aprobador = aprobadorId;
 
                 if (orden.IdSolicitudPrecio == null)
@@ -650,9 +661,12 @@ namespace orion.Controllers
 
                 foreach (var precioAntiguo in preciosAntiguos)
                 {
-                    var idDetalleAntiguo = int.Parse(precioAntiguo.IdDetalleSolicitud);
+                    if (!int.TryParse(precioAntiguo.IdDetalleSolicitud, out var idDetalleAntiguo))
+                    {
+                        continue;
+                    }
 
-                    if (!datos.Productos.Any(p => p.IdDetalleSolicitud == idDetalleAntiguo))
+                    if (!productosValidos.Any(p => p.IdDetalleSolicitud == idDetalleAntiguo))
                     {
                         var detalleProducto = await _context.DetalleSolicitudes.FindAsync(idDetalleAntiguo);
                         if (detalleProducto != null)
@@ -664,7 +678,7 @@ namespace orion.Controllers
 
                 _context.SolicitudPrecio.RemoveRange(preciosAntiguos);
 
-                foreach (var producto in datos.Productos)
+                foreach (var producto in productosValidos)
                 {
                     var solicitudPrecio = new SolicitudPrecio
                     {
