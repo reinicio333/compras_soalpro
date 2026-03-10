@@ -196,9 +196,10 @@ namespace orion.Controllers
                         await _emailService.EnviarAsync(destinatarios, $"Nueva Solicitud de Compra #{solicitud.Id}", cuerpo);
                     }
                 }
-                catch
+                catch (Exception exEmail)
                 {
-                    // No interrumpir el flujo principal.
+                    Console.WriteLine($"[EMAIL ERROR] {exEmail.Message}");
+                    Console.WriteLine($"[EMAIL ERROR] {exEmail.InnerException?.Message}");
                 }
 
                 return Json(new { tipo = "success", mensaje = "SOLICITUD REGISTRADA CON ÉXITO" });
