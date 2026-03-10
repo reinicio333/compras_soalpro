@@ -207,6 +207,8 @@ function editarUsuario(id) {
             frm.estado.value = res.estado;
             frm.idTipo.value = res.idTipo;
             frm.idUsuario.value = res.idusuario;
+            frm.Email.value = res.email || '';
+            frm.EmailResponsable.value = res.emailResponsable || '';
             frm.Area.value = res.area || '';
             const targetEl = document.getElementById('modalRegistroUsuario');
             const modal = new Modal(targetEl);

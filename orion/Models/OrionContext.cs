@@ -75,6 +75,14 @@
                     .HasMaxLength(50)
                     .IsUnicode(false)
                     .HasColumnName("area");
+                entity.Property(e => e.Email)
+                    .HasMaxLength(250)
+                    .IsUnicode(false)
+                    .HasColumnName("email");
+                entity.Property(e => e.EmailResponsable)
+                    .HasMaxLength(250)
+                    .IsUnicode(false)
+                    .HasColumnName("email_responsable");
             });
        
         // Configuración para Solicitudes
