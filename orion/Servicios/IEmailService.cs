@@ -5,7 +5,8 @@ namespace orion.Servicios
         Task EnviarAsync(
             List<(string Email, string Nombre)> destinatarios,
             string asunto,
-            string cuerpoHtml
+            string cuerpoHtml,
+            TipoNotificacion tipo = TipoNotificacion.Normal
         );
     }
 }
