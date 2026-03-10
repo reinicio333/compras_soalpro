@@ -317,6 +317,31 @@ namespace orion.Controllers
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
 
+                try
+                {
+                    var proveedor = await _context.SolicitudPrecio
+                        .Where(sp => sp.IdSolicitudPrecio == orden.IdSolicitudPrecio)
+                        .Join(_context.DetalleSolicitudes,
+                            sp => sp.IdDetalleSolicitud,
+                            ds => ds.Id.ToString(),
+                            (sp, ds) => ds.Proveedor)
+                        .FirstOrDefaultAsync();
+
+                    var destinatarios = await ObtenerSolicitantesOrdenAsync(orden);
+                    if (destinatarios.Any())
+                    {
+                        await _emailService.EnviarAsync(
+                            destinatarios,
+                            $"Orden de Compra #{orden.Id} ha sido creada",
+                            HtmlResumenOrden(orden, proveedor, "<p><strong>Estado actual:</strong> Creado</p><p>Su solicitud ha sido convertida en una orden de compra.</p>")
+                        );
+                    }
+                }
+                catch
+                {
+                    // No interrumpir el flujo principal.
+                }
+
                 return Json(new { tipo = "success", mensaje = "Orden de compra guardada correctamente", id = orden.Id });
             }
             catch (Exception ex)
@@ -880,13 +905,7 @@ namespace orion.Controllers
                     var destinatarios = new List<(string Email, string Nombre)>();
                     var solicitantes = await ObtenerSolicitantesOrdenAsync(orden);
 
-                    if (datos.NuevoEstado == 1)
-                    {
-                        destinatarios.AddRange(solicitantes);
-                        await _emailService.EnviarAsync(destinatarios, $"Orden de Compra #{datos.IdOrden} ha sido creada",
-                            HtmlResumenOrden(orden, proveedor, "<p><strong>Estado actual:</strong> Creado</p><p>Su solicitud ha sido convertida en una orden de compra.</p>"));
-                    }
-                    else if (datos.NuevoEstado == 2)
+                    if (datos.NuevoEstado == 2)
                     {
                         Usuario? aprobador = null;
                         if (int.TryParse(orden.Aprobador, out var idAprobador))
