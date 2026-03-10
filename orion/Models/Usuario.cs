@@ -19,4 +19,6 @@ public partial class Usuario
 
     public string? NomCompleto { get; set; }
     public string? Area { get; set; }
+    public string? Email { get; set; }
+    public string? EmailResponsable { get; set; }
 }

@@ -56,7 +56,9 @@ namespace orion.Controllers
                         Estado = model.Estado,
                         NomCompleto = model.NomCompleto,
                         Idusuario = model.Idusuario,
-                        Area = model.Area
+                        Area = model.Area,
+                        Email = model.Email,
+                        EmailResponsable = model.EmailResponsable
                     };
 
                     _context.Usuarios.Add(nuevoUsuario);
@@ -83,6 +85,8 @@ namespace orion.Controllers
                     usuarioExistente.Estado = model.Estado;
                     usuarioExistente.Idusuario = model.Idusuario;
                     usuarioExistente.Area = model.Area;
+                    usuarioExistente.Email = model.Email;
+                    usuarioExistente.EmailResponsable = model.EmailResponsable;
                     // Solo actualizar contraseña si viene con valor nuevo
                     if (!string.IsNullOrEmpty(model.Contraseña))
                     {
