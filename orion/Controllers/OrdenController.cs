@@ -12,6 +12,7 @@ namespace orion.Controllers
     public class OrdenController : Controller
     {
         private readonly OrionContext _context;
+        private readonly IEmailService _emailService;
         private const decimal TipoCambioPorDefecto = 6.96m;
         private const long MaxArchivoBytes = 1 * 1024 * 1024;
         private static readonly HashSet<string> ExtensionesPermitidas = new(StringComparer.OrdinalIgnoreCase)
@@ -19,9 +20,10 @@ namespace orion.Controllers
             ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf", ".xls", ".xlsx", ".doc", ".docx"
         };
 
-        public OrdenController(OrionContext context)
+        public OrdenController(OrionContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public IActionResult Index()
@@ -314,6 +316,31 @@ namespace orion.Controllers
                 _context.HistorialEstadoOrden.Add(historialInicial);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                try
+                {
+                    var proveedor = await _context.SolicitudPrecio
+                        .Where(sp => sp.IdSolicitudPrecio == orden.IdSolicitudPrecio)
+                        .Join(_context.DetalleSolicitudes,
+                            sp => sp.IdDetalleSolicitud,
+                            ds => ds.Id.ToString(),
+                            (sp, ds) => ds.Proveedor)
+                        .FirstOrDefaultAsync();
+
+                    var destinatarios = await ObtenerSolicitantesOrdenAsync(orden);
+                    if (destinatarios.Any())
+                    {
+                        await _emailService.EnviarAsync(
+                            destinatarios,
+                            $"Orden de Compra #{orden.Id} ha sido creada",
+                            HtmlResumenOrden(orden, proveedor, "<p><strong>Estado actual:</strong> Creado</p><p>Su solicitud ha sido convertida en una orden de compra.</p>")
+                        );
+                    }
+                }
+                catch
+                {
+                    // No interrumpir el flujo principal.
+                }
 
                 return Json(new { tipo = "success", mensaje = "Orden de compra guardada correctamente", id = orden.Id });
             }
@@ -764,6 +791,42 @@ namespace orion.Controllers
 
 
 
+        private static string HtmlResumenOrden(OrdenCompra orden, string? proveedor, string? extra = null)
+        {
+            var contenido = $"<p><strong>Número de orden:</strong> {orden.Id}</p>"
+                + $"<p><strong>Fecha:</strong> {orden.Fecha:dd/MM/yyyy}</p>"
+                + $"<p><strong>Proveedor:</strong> {proveedor}</p>";
+
+            if (!string.IsNullOrWhiteSpace(extra))
+            {
+                contenido += extra;
+            }
+
+            return contenido;
+        }
+
+        private async Task<List<(string Email, string Nombre)>> ObtenerSolicitantesOrdenAsync(OrdenCompra orden)
+        {
+            var idsSolicitudes = await (
+                from sp in _context.SolicitudPrecio
+                where sp.IdSolicitudPrecio == orden.IdSolicitudPrecio
+                join ds in _context.DetalleSolicitudes
+                    on sp.IdDetalleSolicitud equals ds.Id.ToString()
+                select ds.IdSolicitud
+            ).Distinct().ToListAsync();
+
+            var nombresSolicitantes = await _context.Solicitudes
+                .Where(s => idsSolicitudes.Contains(s.Id))
+                .Select(s => s.Solicitante)
+                .Distinct().ToListAsync();
+
+            return await _context.Usuarios
+                .Where(u => nombresSolicitantes.Contains(u.Nombre)
+                         && !string.IsNullOrEmpty(u.Email))
+                .Select(u => new ValueTuple<string, string>(u.Email!, u.NomCompleto ?? u.Nombre))
+                .ToListAsync();
+        }
+
         [HttpPost]
         public async Task<IActionResult> CambiarEstado([FromBody] CambioEstadoDto datos)
         {
@@ -828,6 +891,82 @@ namespace orion.Controllers
                 _context.HistorialEstadoOrden.Add(historial);
                 await _context.SaveChangesAsync();
                 await transaction.CommitAsync();
+
+                try
+                {
+                    var proveedor = await _context.SolicitudPrecio
+                        .Where(sp => sp.IdSolicitudPrecio == orden.IdSolicitudPrecio)
+                        .Join(_context.DetalleSolicitudes,
+                            sp => sp.IdDetalleSolicitud,
+                            ds => ds.Id.ToString(),
+                            (sp, ds) => ds.Proveedor)
+                        .FirstOrDefaultAsync();
+
+                    var destinatarios = new List<(string Email, string Nombre)>();
+                    var solicitantes = await ObtenerSolicitantesOrdenAsync(orden);
+
+                    if (datos.NuevoEstado == 2)
+                    {
+                        Usuario? aprobador = null;
+                        if (int.TryParse(orden.Aprobador, out var idAprobador))
+                        {
+                            aprobador = await _context.Usuarios.FindAsync(idAprobador);
+                        }
+
+                        if (!string.IsNullOrEmpty(aprobador?.Email))
+                        {
+                            destinatarios.Add((aprobador.Email, aprobador.NomCompleto ?? aprobador.Nombre));
+                        }
+
+                        if (destinatarios.Any())
+                        {
+                            var solicitantesTexto = string.Join(", ", solicitantes.Select(s => s.Nombre));
+                            await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} requiere su Pre-autorización",
+                                HtmlResumenOrden(orden, proveedor, $"<p><strong>Solicitante(s):</strong> {solicitantesTexto}</p><p>Esta orden requiere su revisión y pre-autorización.</p>"));
+                        }
+                    }
+                    else if (datos.NuevoEstado == 3 || datos.NuevoEstado == 9 || datos.NuevoEstado == 11)
+                    {
+                        destinatarios.AddRange(solicitantes);
+
+                        var creador = await _context.Usuarios
+                            .Where(u => u.Nombre == orden.Solicitante && !string.IsNullOrEmpty(u.Email))
+                            .Select(u => new { u.Email, u.NomCompleto, u.Nombre })
+                            .FirstOrDefaultAsync();
+                        if (creador != null)
+                        {
+                            destinatarios.Add((creador.Email!, creador.NomCompleto ?? creador.Nombre));
+                        }
+
+                        destinatarios = destinatarios
+                            .GroupBy(d => d.Email, StringComparer.OrdinalIgnoreCase)
+                            .Select(g => g.First())
+                            .ToList();
+
+                        if (destinatarios.Any())
+                        {
+                            if (datos.NuevoEstado == 3)
+                            {
+                                await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} ha sido APROBADA",
+                                    HtmlResumenOrden(orden, proveedor, "<p style='color:#166534;font-weight:bold'>La orden ha sido aprobada.</p>"));
+                            }
+                            else if (datos.NuevoEstado == 9)
+                            {
+                                await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} ha sido recibida en almacén",
+                                    HtmlResumenOrden(orden, proveedor, $"<p><strong>Fecha de recepción:</strong> {DateTime.Now:dd/MM/yyyy}</p><p>Los productos han sido recibidos en almacén.</p>"));
+                            }
+                            else if (datos.NuevoEstado == 11)
+                            {
+                                await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} ha sido RECHAZADA",
+                                    HtmlResumenOrden(orden, proveedor, $"<p style='color:#991b1b;background:#fee2e2;padding:10px;border-radius:6px'><strong>Motivo:</strong> {datos.Observacion}</p><p>La orden ha sido rechazada. Revise el motivo indicado.</p>"));
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // No interrumpir el flujo principal.
+                }
 
                 return Json(new { tipo = "success", mensaje = "Estado actualizado correctamente" });
             }
