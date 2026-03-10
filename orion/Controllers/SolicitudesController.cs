@@ -12,6 +12,7 @@ namespace orion.Controllers
     public class SolicitudesController : Controller
     {
         private readonly OrionContext _context;
+        private readonly IEmailService _emailService;
 
         private static decimal ParseDecimalFlexible(string? value)
         {
@@ -38,6 +39,29 @@ namespace orion.Controllers
                 : 0;
         }
 
+
+        private static string ConstruirTablaProductosHtml(IEnumerable<DetalleSolicitudes> productos)
+        {
+            var filas = string.Join("", productos.Select(p =>
+                $"<tr><td style='border:1px solid #e5e7eb;padding:8px'>{p.Descripcion}</td><td style='border:1px solid #e5e7eb;padding:8px'>{p.Proveedor}</td><td style='border:1px solid #e5e7eb;padding:8px'>{p.Cantidad}</td><td style='border:1px solid #e5e7eb;padding:8px'>{p.Unidad}</td></tr>"));
+
+            return $@"<table style='width:100%;border-collapse:collapse;font-size:14px'>
+<tr>
+<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Descripción</th>
+<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Proveedor</th>
+<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Cantidad</th>
+<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Unidad</th>
+</tr>{filas}</table>";
+        }
+
+        private static string ConstruirResumenSolicitudHtml(Solicitudes solicitud)
+        {
+            return $@"<p><strong>Número:</strong> {solicitud.Id}</p>
+<p><strong>Fecha:</strong> {solicitud.Fecha:dd/MM/yyyy}</p>
+<p><strong>Referencia:</strong> {solicitud.Referencia}</p>
+<p><strong>Solicitante:</strong> {solicitud.Solicitante}</p>";
+        }
+
         private static List<int> ObtenerIndicesProductos(IFormCollection form)
         {
             var regexIndice = new Regex(@"^productos\[(\d+)\]\[codigo\]$", RegexOptions.Compiled);
@@ -51,9 +75,10 @@ namespace orion.Controllers
                 .ToList();
         }
 
-        public SolicitudesController(OrionContext context)
+        public SolicitudesController(OrionContext context, IEmailService emailService)
         {
             _context = context;
+            _emailService = emailService;
         }
 
         public IActionResult Index()
@@ -153,6 +178,28 @@ namespace orion.Controllers
 
                 _context.DetalleSolicitudes.AddRange(productos);
                 await _context.SaveChangesAsync();
+
+                try
+                {
+                    var usuarioSolicitante = await _context.Usuarios
+                        .FirstOrDefaultAsync(u => u.Nombre == solicitud.Solicitante);
+                    var destinatarios = new List<(string, string)>();
+                    if (!string.IsNullOrEmpty(usuarioSolicitante?.EmailResponsable))
+                    {
+                        destinatarios.Add((usuarioSolicitante.EmailResponsable,
+                            usuarioSolicitante.NomCompleto ?? usuarioSolicitante.Nombre));
+                    }
+
+                    if (destinatarios.Any())
+                    {
+                        var cuerpo = ConstruirResumenSolicitudHtml(solicitud) + ConstruirTablaProductosHtml(productos);
+                        await _emailService.EnviarAsync(destinatarios, $"Nueva Solicitud de Compra #{solicitud.Id}", cuerpo);
+                    }
+                }
+                catch
+                {
+                    // No interrumpir el flujo principal.
+                }
 
                 return Json(new { tipo = "success", mensaje = "SOLICITUD REGISTRADA CON ÉXITO" });
             }
@@ -299,6 +346,31 @@ namespace orion.Controllers
                 _context.DetalleSolicitudes.AddRange(productos);
                 await _context.SaveChangesAsync();
 
+                try
+                {
+                    var usuarioSolicitante = await _context.Usuarios
+                        .FirstOrDefaultAsync(u => u.Nombre == solicitud.Solicitante);
+                    var destinatarios = new List<(string, string)>();
+                    if (!string.IsNullOrEmpty(usuarioSolicitante?.EmailResponsable))
+                    {
+                        destinatarios.Add((usuarioSolicitante.EmailResponsable,
+                            usuarioSolicitante.NomCompleto ?? usuarioSolicitante.Nombre));
+                    }
+
+                    if (destinatarios.Any())
+                    {
+                        var detallesSolicitud = await _context.DetalleSolicitudes
+                            .Where(d => d.IdSolicitud == idSolicitud)
+                            .ToListAsync();
+                        var cuerpo = ConstruirResumenSolicitudHtml(solicitud) + ConstruirTablaProductosHtml(detallesSolicitud);
+                        await _emailService.EnviarAsync(destinatarios, $"Solicitud #{idSolicitud} ha sido actualizada", cuerpo);
+                    }
+                }
+                catch
+                {
+                    // No interrumpir el flujo principal.
+                }
+
                 return Json(new { tipo = "success", mensaje = "SOLICITUD ACTUALIZADA CON ÉXITO" });
             }
             catch (Exception ex)
@@ -331,6 +403,18 @@ namespace orion.Controllers
                     return Json(new { tipo = "warning", mensaje = "SOLICITUD NO ENCONTRADA" });
                 }
 
+                var solicitudCopia = new Solicitudes
+                {
+                    Id = solicitud.Id,
+                    Fecha = solicitud.Fecha,
+                    Frequerimiento = solicitud.Frequerimiento,
+                    Referencia = solicitud.Referencia,
+                    Solicitante = solicitud.Solicitante
+                };
+
+                var usuarioSolicitante = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.Nombre == solicitud.Solicitante);
+
                 // Eliminar primero los detalles
                 var detalles = await _context.DetalleSolicitudes
                     .Where(d => d.IdSolicitud == id)
@@ -340,6 +424,27 @@ namespace orion.Controllers
                 _context.Solicitudes.Remove(solicitud);
 
                 await _context.SaveChangesAsync();
+
+                try
+                {
+                    var destinatarios = new List<(string, string)>();
+                    if (!string.IsNullOrEmpty(usuarioSolicitante?.EmailResponsable))
+                    {
+                        destinatarios.Add((usuarioSolicitante.EmailResponsable,
+                            usuarioSolicitante.NomCompleto ?? usuarioSolicitante.Nombre));
+                    }
+
+                    if (destinatarios.Any())
+                    {
+                        var cuerpo = ConstruirResumenSolicitudHtml(solicitudCopia)
+                            + "<p>Esta solicitud ha sido eliminada del sistema.</p>";
+                        await _emailService.EnviarAsync(destinatarios, $"Solicitud #{id} ha sido eliminada", cuerpo);
+                    }
+                }
+                catch
+                {
+                    // No interrumpir el flujo principal.
+                }
 
                 return Json(new { tipo = "success", mensaje = "SOLICITUD ELIMINADA CORRECTAMENTE" });
             }
