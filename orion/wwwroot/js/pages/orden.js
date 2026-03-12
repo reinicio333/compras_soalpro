@@ -8,6 +8,28 @@ let tipoCambioActual = "6.96";
 const tiposArchivoPermitidos = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'xls', 'xlsx', 'doc', 'docx'];
 const maxArchivoBytes = 1024 * 1024;
 
+const btnGuardarOrden = document.querySelector("#btnGuardarOrden");
+
+function toggleButtonLoading(button, isLoading, loadingText = "Procesando...") {
+    if (!button) return;
+
+    if (isLoading) {
+        if (!button.dataset.originalHtml) {
+            button.dataset.originalHtml = button.innerHTML;
+        }
+        button.disabled = true;
+        button.classList.add("opacity-75", "cursor-not-allowed");
+        button.innerHTML = `<span class="inline-flex items-center"><i class="fas fa-spinner fa-spin mr-1"></i>${loadingText}</span>`;
+        return;
+    }
+
+    button.disabled = false;
+    button.classList.remove("opacity-75", "cursor-not-allowed");
+    if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
+    }
+}
+
 // Configuración del Grid
 const gridOptions = {
     columnDefs: [
@@ -92,18 +114,18 @@ const gridOptions = {
 
                 if (window.esUsuarioPlanta) {
                     return `
-                    <button onclick="verEstadoOrden(${params.data.id})" 
-                            class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                    <button onclick="verEstadoOrden(${params.data.id}, this)"
+                            class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all"
                             title="Ver Estado">
                         <i class="fas fa-tasks text-sm"></i>
                     </button>
-                    <button onclick="vistaPreviaOrden(${params.data.id})" 
-                            class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                    <button onclick="vistaPreviaOrden(${params.data.id}, this)"
+                            class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all"
                             title="Vista Previa">
                         <i class="fas fa-eye text-sm"></i>
                     </button>
-                    <button onclick="descargarPdfOrden(${params.data.id})" 
-                            class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                    <button onclick="descargarPdfOrden(${params.data.id}, this)"
+                            class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all"
                             title="Descargar PDF">
                         <i class="fas fa-file-download text-sm"></i>
                     </button>
@@ -112,18 +134,18 @@ const gridOptions = {
 
                 if (window.tipoUsuario === 'ALMACEN') {
                     return `
-                <button onclick="verEstadoOrden(${params.data.id})" 
-                        class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                <button onclick="verEstadoOrden(${params.data.id}, this)"
+                        class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all"
                         title="Ver Estado">
                     <i class="fas fa-tasks text-sm"></i>
                 </button>
-                <button onclick="vistaPreviaOrden(${params.data.id})" 
-                        class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                <button onclick="vistaPreviaOrden(${params.data.id}, this)"
+                        class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all"
                         title="Vista Previa">
                     <i class="fas fa-eye text-sm"></i>
                 </button>
-                <button onclick="descargarPdfOrden(${params.data.id})" 
-                        class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                <button onclick="descargarPdfOrden(${params.data.id}, this)"
+                        class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all"
                         title="Descargar PDF">
                     <i class="fas fa-file-download text-sm"></i>
                 </button>
@@ -131,18 +153,18 @@ const gridOptions = {
                 }
                 if (window.tipoUsuario === 'GERENCIA') {
                     return `
-                        <button onclick="verEstadoOrden(${params.data.id})" 
-                                class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+                        <button onclick="verEstadoOrden(${params.data.id}, this)"
+                                class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all"
                                 title="Ver Estado">
                             <i class="fas fa-tasks text-sm"></i>
                         </button>
-                        <button onclick="vistaPreviaOrden(${params.data.id})" 
-                                class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+                        <button onclick="vistaPreviaOrden(${params.data.id}, this)"
+                                class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all"
                                 title="Vista Previa">
                             <i class="fas fa-eye text-sm"></i>
                         </button>
-                        <button onclick="descargarPdfOrden(${params.data.id})" 
-                                class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+                        <button onclick="descargarPdfOrden(${params.data.id}, this)"
+                                class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all"
                                 title="Descargar PDF">
                             <i class="fas fa-file-download text-sm"></i>
                         </button>
@@ -150,29 +172,29 @@ const gridOptions = {
                 }
 
                 return `
-            <button onclick="verEstadoOrden(${params.data.id})" 
-                    class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all" 
+            <button onclick="verEstadoOrden(${params.data.id}, this)"
+                    class="px-3 py-1 text-blue-400 hover:bg-blue-700 hover:text-white rounded-lg transition-all"
                     title="Ver/Cambiar Estado">
                 <i class="fas fa-tasks text-sm"></i>
             </button>
-            <button onclick="vistaPreviaOrden(${params.data.id})" 
-                    class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all" 
+            <button onclick="vistaPreviaOrden(${params.data.id}, this)"
+                    class="px-3 py-1 text-gray-400 hover:bg-gray-600 hover:text-white rounded-lg transition-all"
                     title="Vista Previa">
                 <i class="fas fa-eye text-sm"></i>
             </button>
-            <button onclick="descargarPdfOrden(${params.data.id})" 
-                    class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all" 
+            <button onclick="descargarPdfOrden(${params.data.id}, this)"
+                    class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all"
                     title="Descargar PDF">
                 <i class="fas fa-file-download text-sm"></i>
             </button>
             ${esAprobadoOSuperior ? '' : `
-                <button onclick="editarOrden(${params.data.id})" 
-                        class="px-3 py-1 text-yellow-600 hover:bg-yellow-700 hover:text-white rounded-lg transition-all" 
+                <button onclick="editarOrden(${params.data.id})"
+                        class="px-3 py-1 text-yellow-600 hover:bg-yellow-700 hover:text-white rounded-lg transition-all"
                         title="Editar">
                     <i class="fas fa-edit text-sm"></i>
                 </button>
-                <button onclick="eliminarOrden(${params.data.id})" 
-                        class="px-3 py-1 text-red-600 hover:bg-red-700 hover:text-white rounded-lg transition-all" 
+                <button onclick="eliminarOrden(${params.data.id})"
+                        class="px-3 py-1 text-red-600 hover:bg-red-700 hover:text-white rounded-lg transition-all"
                         title="Eliminar">
                     <i class="fas fa-trash text-sm"></i>
                 </button>
@@ -456,14 +478,14 @@ async function cargarDetalle(id) {
                         <td class="px-2 py-3 text-center text-white">${index + 1}</td>
                         <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
                         <td class="px-2 py-3">
-                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed" 
+                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed"
                                    value="${d.fechaEntrega || ''}" readonly>
                         </td>
                         <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
                         <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
                         <td class="px-2 py-3 text-center text-white cantidad-producto">${d.cantidad || 0}</td>
                         <td class="px-2 py-3">
-                            <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                            <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right"
                                    placeholder="0.00" onkeyup="calcularTotal(this)">
                         </td>
                         <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
@@ -502,19 +524,19 @@ async function cargarDetallesPorProveedor(proveedor) {
                         <td class="px-2 py-3 text-center text-white">${index + 1}</td>
                         <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
                         <td class="px-2 py-3">
-                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed" 
+                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed"
                                    value="${d.fechaEntrega || ''}" readonly>
                         </td>
                         <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
                         <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
-                        
+
                         <td class="px-2 py-3 text-center">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" class="chk-stock sr-only peer">
-                                <div class="w-8 h-4 bg-gray-600 rounded-full peer 
+                                <div class="w-8 h-4 bg-gray-600 rounded-full peer
                                             peer-checked:bg-green-500
-                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                                            after:bg-white after:rounded-full after:h-3 after:w-3 
+                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                                            after:bg-white after:rounded-full after:h-3 after:w-3
                                             after:transition-all peer-checked:after:translate-x-4 relative">
                                 </div>
                             </label>
@@ -526,7 +548,7 @@ async function cargarDetallesPorProveedor(proveedor) {
                                    value="${d.cantidad || 0}" onkeyup="calcularTotal(this)">
                         </td>
                         <td class="px-2 py-3">
-                            <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right" 
+                            <input type="number" step="0.01" class="precio-producto bg-gray-800 border border-blue-600 text-white text-xs rounded p-1 w-full text-right"
                                    placeholder="0.00" onkeyup="calcularTotal(this)">
                         </td>
                         <td class="px-2 py-3 text-right font-bold text-white total-fila">0.00</td>
@@ -639,7 +661,7 @@ function recopilarDatos() {
                 unidad: cells[6]?.textContent.trim() || '',
                 cantidad: parseFloat(fila.querySelector('.cantidad-producto')?.value) || 0,
                 precio: parseFloat(fila.querySelector('.precio-producto')?.value) || 0,
-                esStock: fila.querySelector('.chk-stock')?.checked || false 
+                esStock: fila.querySelector('.chk-stock')?.checked || false
             });
         }
     });
@@ -668,6 +690,8 @@ async function guardarOrden() {
 
     const url = datos.idOrden > 0 ? '/Orden/ActualizarOrden' : '/Orden/GuardarOrden';
 
+    toggleButtonLoading(btnGuardarOrden, true, 'Guardando...');
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -689,6 +713,8 @@ async function guardarOrden() {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al guardar la orden', 'error');
+    } finally {
+        toggleButtonLoading(btnGuardarOrden, false);
     }
 }
 
@@ -773,10 +799,10 @@ async function editarOrden(id) {
                         <td class="px-2 py-3 text-center">
                             <label class="relative inline-flex items-center cursor-pointer">
                                 <input type="checkbox" class="chk-stock sr-only peer" ${p.esStock ? 'checked' : ''}>
-                                <div class="w-8 h-4 bg-gray-600 rounded-full peer 
+                                <div class="w-8 h-4 bg-gray-600 rounded-full peer
                                             peer-checked:bg-green-500
-                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                                            after:bg-white after:rounded-full after:h-3 after:w-3 
+                                            after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                                            after:bg-white after:rounded-full after:h-3 after:w-3
                                             after:transition-all peer-checked:after:translate-x-4 relative">
                                 </div>
                             </label>
@@ -817,10 +843,10 @@ async function editarOrden(id) {
                     <td class="px-2 py-3 text-center">
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" class="chk-stock sr-only peer">
-                            <div class="w-8 h-4 bg-gray-600 rounded-full peer 
+                            <div class="w-8 h-4 bg-gray-600 rounded-full peer
                                         peer-checked:bg-green-500
-                                        after:content-[''] after:absolute after:top-[2px] after:left-[2px] 
-                                        after:bg-white after:rounded-full after:h-3 after:w-3 
+                                        after:content-[''] after:absolute after:top-[2px] after:left-[2px]
+                                        after:bg-white after:rounded-full after:h-3 after:w-3
                                         after:transition-all peer-checked:after:translate-x-4 relative">
                             </div>
                         </label>
@@ -1099,7 +1125,11 @@ async function cargarArchivosOrden(idOrden, idContenedor) {
 }
 
 
-async function vistaPreviaOrden(id) {
+async function vistaPreviaOrden(id, botonAccion = null) {
+    if (botonAccion) {
+        toggleButtonLoading(botonAccion, true, '');
+    }
+
     try {
         const response = await fetch('/Orden/GenerarPdfVistaPrevia', {
             method: 'POST',
@@ -1122,10 +1152,18 @@ async function vistaPreviaOrden(id) {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al generar vista previa', 'error');
+    } finally {
+        if (botonAccion) {
+            toggleButtonLoading(botonAccion, false);
+        }
     }
 }
 
-async function descargarPdfOrden(id) {
+async function descargarPdfOrden(id, botonAccion = null) {
+    if (botonAccion) {
+        toggleButtonLoading(botonAccion, true, '');
+    }
+
     try {
         const response = await fetch('/Orden/GenerarPdf', {
             method: 'POST',
@@ -1153,10 +1191,18 @@ async function descargarPdfOrden(id) {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al generar PDF', 'error');
+    } finally {
+        if (botonAccion) {
+            toggleButtonLoading(botonAccion, false);
+        }
     }
 }
 
-async function verEstadoOrden(id) {
+async function verEstadoOrden(id, botonAccion = null) {
+    if (botonAccion) {
+        toggleButtonLoading(botonAccion, true, '');
+    }
+
     try {
         const responseOrden = await fetch(`/Orden/GetOrden?id=${id}`);
         const dataOrden = await responseOrden.json();
@@ -1200,7 +1246,7 @@ async function verEstadoOrden(id) {
 
                         htmlSolicitudes += `
                             <div>
-                                <span class="font-semibold">Solicitud:</span> #${idSol} | 
+                                <span class="font-semibold">Solicitud:</span> #${idSol} |
                                 <span class="font-semibold">F. Requerimiento:</span> ${fechaReq}
                             </div>
                         `;
@@ -1281,7 +1327,7 @@ async function verEstadoOrden(id) {
                     btn.onclick = () => { };
                 } else {
                     btn.title = estado.detalle || '';
-                    btn.onclick = () => cambiarEstado(id, estado.id);
+                    btn.onclick = () => cambiarEstado(id, estado.id, btn);
                 }
 
                 contenedorEstados.appendChild(btn);
@@ -1293,10 +1339,14 @@ async function verEstadoOrden(id) {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al cargar la orden', 'error');
+    } finally {
+        if (botonAccion) {
+            toggleButtonLoading(botonAccion, false);
+        }
     }
 }
 
-async function cambiarEstado(idOrden, nuevoEstado) {
+async function cambiarEstado(idOrden, nuevoEstado, botonEstado = null) {
     const responseOrden = await fetch(`/Orden/GetOrden?id=${idOrden}`);
     const dataOrden = await responseOrden.json();
     const estadoActual = dataOrden.orden.idEstadoSolicitud;
@@ -1353,6 +1403,10 @@ async function cambiarEstado(idOrden, nuevoEstado) {
         if (!result.isConfirmed) return;
     }
 
+    if (botonEstado) {
+        toggleButtonLoading(botonEstado, true, 'Actualizando...');
+    }
+
     try {
         const response = await fetch('/Orden/CambiarEstado', {
             method: 'POST',
@@ -1374,6 +1428,10 @@ async function cambiarEstado(idOrden, nuevoEstado) {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al cambiar estado', 'error');
+    } finally {
+        if (botonEstado) {
+            toggleButtonLoading(botonEstado, false);
+        }
     }
 }
 

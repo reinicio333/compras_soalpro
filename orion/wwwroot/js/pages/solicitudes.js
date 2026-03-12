@@ -5,6 +5,30 @@ const btnNuevaSolicitud = document.querySelector("#btnNuevaSolicitud");
 const btnAgregarProducto = document.querySelector("#btnAgregarProducto");
 const productosContainer = document.querySelector("#productosLista");
 const frm = document.querySelector("#formularioSolicitud");
+const btnGuardarSolicitud = document.querySelector("#btnGuardarSolicitud");
+
+function toggleButtonLoading(button, isLoading, loadingText = "Procesando...") {
+    if (!button) return;
+
+    if (isLoading) {
+        if (!button.dataset.originalHtml) {
+            button.dataset.originalHtml = button.innerHTML;
+        }
+        button.disabled = true;
+        button.classList.add("opacity-75", "cursor-not-allowed");
+        button.innerHTML = `
+            <span class="inline-flex items-center">
+                <i class="fas fa-spinner fa-spin mr-2"></i>${loadingText}
+            </span>`;
+        return;
+    }
+
+    button.disabled = false;
+    button.classList.remove("opacity-75", "cursor-not-allowed");
+    if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
+    }
+}
 
 let gridApi;
 let contadorProductos = 0;
@@ -48,25 +72,25 @@ const gridOptions = {
                 const idSolicitud = params.data.id;
 
                 return `
-            <button onclick="vistaPreviaSolicitud('${params.data.id}')" 
-                    class="px-3 py-1 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg transition-all duration-200" 
+            <button onclick="vistaPreviaSolicitud('${params.data.id}')"
+                    class="px-3 py-1 text-blue-400 hover:bg-blue-600 hover:text-white rounded-lg transition-all duration-200"
                     title="Vista Previa">
                 <i class="fas fa-eye text-sm"></i>
             </button>
-            <button onclick="descargarPdfSolicitud('${params.data.id}')" 
-                    class="px-3 py-1 text-green-400 hover:bg-green-600 hover:text-white rounded-lg transition-all duration-200" 
+            <button onclick="descargarPdfSolicitud('${params.data.id}')"
+                    class="px-3 py-1 text-green-400 hover:bg-green-600 hover:text-white rounded-lg transition-all duration-200"
                     title="Descargar PDF">
                 <i class="fas fa-file-download text-sm"></i>
             </button>
-            <button onclick="verificarYEditar('${params.data.id}')" 
+            <button onclick="verificarYEditar('${params.data.id}')"
                     id="btn-editar-${params.data.id}"
-                    class="px-3 py-1 text-yellow-400 hover:bg-yellow-600 hover:text-white rounded-lg transition-all duration-200" 
+                    class="px-3 py-1 text-yellow-400 hover:bg-yellow-600 hover:text-white rounded-lg transition-all duration-200"
                     title="Editar">
                 <i class="fas fa-edit text-sm"></i>
             </button>
-            <button onclick="verificarYEliminar('${params.data.id}')" 
+            <button onclick="verificarYEliminar('${params.data.id}', this)"
                     id="btn-eliminar-${params.data.id}"
-                    class="px-3 py-1 text-red-400 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200" 
+                    class="px-3 py-1 text-red-400 hover:bg-red-600 hover:text-white rounded-lg transition-all duration-200"
                     title="Eliminar">
                 <i class="fas fa-trash text-sm"></i>
             </button>
@@ -136,89 +160,89 @@ function agregarProducto() {
 
             <!-- Selectize Producto -->
             <div class="col-span-2">
-                <select class="select-producto-${contadorProductos}" 
+                <select class="select-producto-${contadorProductos}"
                         id="select_producto_${contadorProductos}"
                         required>
                 </select>
                 <!-- CAMBIADO: Ahora el código va en un hidden -->
-                <input type="hidden" 
-                       name="productos[${contadorProductos}][codigo]" 
+                <input type="hidden"
+                       name="productos[${contadorProductos}][codigo]"
                        id="codigo_${contadorProductos}">
                 <!-- Y la descripción también -->
-                <input type="hidden" 
-                       name="productos[${contadorProductos}][descripcion]" 
+                <input type="hidden"
+                       name="productos[${contadorProductos}][descripcion]"
                        id="descripcion_${contadorProductos}">
-                <input type="hidden" 
-                       name="productos[${contadorProductos}][unidad]" 
+                <input type="hidden"
+                       name="productos[${contadorProductos}][unidad]"
                        id="unidad_${contadorProductos}">
             </div>
 
             <!-- Selectize Proveedor -->
             <div class="col-span-2">
-                <select class="select-proveedor-${contadorProductos}" 
-                        name="productos[${contadorProductos}][proveedor]" 
+                <select class="select-proveedor-${contadorProductos}"
+                        name="productos[${contadorProductos}][proveedor]"
                         required>
                 </select>
             </div>
             <input type="hidden"
-       name="productos[${contadorProductos}][codProveedor]" 
+       name="productos[${contadorProductos}][codProveedor]"
        id="codProveedor_${contadorProductos}">
             <!-- Características -->
             <div class="col-span-1">
-                <input type="text" 
-                       name="productos[${contadorProductos}][caracteristicas]" 
-                       class="uppercase bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400" 
+                <input type="text"
+                       name="productos[${contadorProductos}][caracteristicas]"
+                       class="uppercase bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
                        placeholder="Características" >
             </div>
             <!-- Req. Días -->
             <input type="number"
                        id="frequerimiento_dias_${contadorProductos}"
-                       name="productos[${contadorProductos}][frequerimiento_dias]" 
+                       name="productos[${contadorProductos}][frequerimiento_dias]"
                        class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
                        placeholder="Auto" readonly>
             <!-- Último Precio -->
             <div class="col-span-1">
                 <input type="text"
                        id="ultimoPrecio_display_${contadorProductos}"
-                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed" 
+                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
                        placeholder="Sin precio"
                        readonly>
-                <input type="hidden" 
+                <input type="hidden"
                        id="ultimoPrecio_${contadorProductos}"
                        name="productos[${contadorProductos}][ultimoPrecio]">
             </div>
 
             <!-- Última Compra -->
             <div class="col-span-1">
-                <input type="text" 
+                <input type="text"
                        id="fultimaCompra_display_${contadorProductos}"
-                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed" 
+                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
                        placeholder="Sin fecha"
                        readonly>
-                <input type="hidden" 
+                <input type="hidden"
                        id="fultimaCompra_${contadorProductos}"
                        name="productos[${contadorProductos}][fultimaCompra]">
             </div>
             <!-- Unidad (readonly) -->
             <div class="col-span-1">
-                <input type="text" 
+                <input type="text"
                        id="unidad_display_${contadorProductos}"
-                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed" 
+                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
                        readonly>
             </div>
 
             <!-- Cantidad -->
             <div class="col-span-1">
-                <input type="number" step="0.01" 
-                       name="productos[${contadorProductos}][cantidad]" 
-                       class="bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400" 
+                <input type="number" step="0.01"
+                       name="productos[${contadorProductos}][cantidad]"
+                       class="bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
                        placeholder="0.00" required>
             </div>
 
             <!-- Botón eliminar -->
             <div class="col-span-1 text-center">
-                <button type="button" 
-                        onclick="eliminarProducto(${contadorProductos})" 
+                <button type="button"
+                        onclick="eliminarProducto(${contadorProductos})"
                         class="text-red-400 hover:text-red-300 transition-colors p-1">
                     <i class="fas fa-times-circle text-lg"></i>
                 </button>
@@ -601,6 +625,7 @@ frm.addEventListener("submit", function (e) {
     const http = new XMLHttpRequest();
     const url = frm.id.value ? "/Solicitudes/Actualizar" : "/Solicitudes/Guardar";
 
+    toggleButtonLoading(btnGuardarSolicitud, true, "Guardando...");
     http.open("POST", url, true);
     http.send(dataMayusculas);
 
@@ -617,6 +642,14 @@ frm.addEventListener("submit", function (e) {
                 cargarSolicitudes();
             }
         }
+    };
+
+    http.onerror = function () {
+        alertaPersonalizada('error', 'Error al guardar la solicitud');
+    };
+
+    http.onloadend = function () {
+        toggleButtonLoading(btnGuardarSolicitud, false);
     };
 });
 
@@ -859,7 +892,7 @@ function editarSolicitud(id) {
             alertaPersonalizada('error', 'Error al cargar la solicitud');
         });
 }
-function eliminarSolicitud(id) {
+function eliminarSolicitud(id, botonEliminar = null) {
     Swal.fire({
         title: '¿Está seguro de eliminar la solicitud?',
         text: "Esta acción no se puede revertir",
@@ -872,23 +905,34 @@ function eliminarSolicitud(id) {
         background: '#1f2937',
         color: '#ffffff'
     }).then((result) => {
-        if (result.isConfirmed) {
-            fetch('/Solicitudes/EliminarSolicitud?id=' + id, {
-                method: 'POST'
-            })
-                .then(resp => resp.json())
-                .then(data => {
-                    alertaPersonalizada(data.tipo, data.mensaje);
-                    if (data.tipo === 'success') {
-                        cargarSolicitudes();
-                    }
-                })
-                .catch(err => {
-                    alertaPersonalizada('error', 'Error al eliminar: ' + err);
-                });
+        if (!result.isConfirmed) {
+            if (botonEliminar) {
+                toggleButtonLoading(botonEliminar, false);
+            }
+            return;
         }
+
+        fetch('/Solicitudes/EliminarSolicitud?id=' + id, {
+            method: 'POST'
+        })
+            .then(resp => resp.json())
+            .then(data => {
+                alertaPersonalizada(data.tipo, data.mensaje);
+                if (data.tipo === 'success') {
+                    cargarSolicitudes();
+                }
+            })
+            .catch(err => {
+                alertaPersonalizada('error', 'Error al eliminar: ' + err);
+            })
+            .finally(() => {
+                if (botonEliminar) {
+                    toggleButtonLoading(botonEliminar, false);
+                }
+            });
     });
 }
+
 
 function cerrarModal() {
     const targetEl = document.getElementById('modalSolicitud');
@@ -919,7 +963,7 @@ async function verificarYEditar(id) {
     editarSolicitud(id);
 }
 
-async function verificarYEliminar(id) {
+async function verificarYEliminar(id, botonEliminar = null) {
     try {
         const response = await fetch(`/Solicitudes/VerificarEstadoSolicitud?id=${id}`);
         const data = await response.json();
@@ -937,10 +981,17 @@ async function verificarYEliminar(id) {
             return;
         }
 
-        eliminarSolicitud(id);
+        if (botonEliminar) {
+            toggleButtonLoading(botonEliminar, true, '');
+        }
+
+        eliminarSolicitud(id, botonEliminar);
     } catch (error) {
         console.error('Error:', error);
         alertaPersonalizada('error', 'Error al verificar el estado de la solicitud');
+        if (botonEliminar) {
+            toggleButtonLoading(botonEliminar, false);
+        }
     }
 }
 function initializeSelectizeForProductEditReadonly(index, detalle) {
