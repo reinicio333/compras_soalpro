@@ -8,6 +8,28 @@ let tipoCambioActual = "6.96";
 const tiposArchivoPermitidos = ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'pdf', 'xls', 'xlsx', 'doc', 'docx'];
 const maxArchivoBytes = 1024 * 1024;
 
+const btnGuardarOrden = document.querySelector("#btnGuardarOrden");
+
+function toggleButtonLoading(button, isLoading, loadingText = "Procesando...") {
+    if (!button) return;
+
+    if (isLoading) {
+        if (!button.dataset.originalHtml) {
+            button.dataset.originalHtml = button.innerHTML;
+        }
+        button.disabled = true;
+        button.classList.add("opacity-75", "cursor-not-allowed");
+        button.innerHTML = `<span class="inline-flex items-center"><i class="fas fa-spinner fa-spin mr-1"></i>${loadingText}</span>`;
+        return;
+    }
+
+    button.disabled = false;
+    button.classList.remove("opacity-75", "cursor-not-allowed");
+    if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
+    }
+}
+
 // Configuración del Grid
 const gridOptions = {
     columnDefs: [
@@ -668,6 +690,8 @@ async function guardarOrden() {
 
     const url = datos.idOrden > 0 ? '/Orden/ActualizarOrden' : '/Orden/GuardarOrden';
 
+    toggleButtonLoading(btnGuardarOrden, true, 'Guardando...');
+
     try {
         const response = await fetch(url, {
             method: 'POST',
@@ -689,6 +713,8 @@ async function guardarOrden() {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al guardar la orden', 'error');
+    } finally {
+        toggleButtonLoading(btnGuardarOrden, false);
     }
 }
 
@@ -1281,7 +1307,7 @@ async function verEstadoOrden(id) {
                     btn.onclick = () => { };
                 } else {
                     btn.title = estado.detalle || '';
-                    btn.onclick = () => cambiarEstado(id, estado.id);
+                    btn.onclick = () => cambiarEstado(id, estado.id, btn);
                 }
 
                 contenedorEstados.appendChild(btn);
@@ -1296,7 +1322,7 @@ async function verEstadoOrden(id) {
     }
 }
 
-async function cambiarEstado(idOrden, nuevoEstado) {
+async function cambiarEstado(idOrden, nuevoEstado, botonEstado = null) {
     const responseOrden = await fetch(`/Orden/GetOrden?id=${idOrden}`);
     const dataOrden = await responseOrden.json();
     const estadoActual = dataOrden.orden.idEstadoSolicitud;
@@ -1353,6 +1379,10 @@ async function cambiarEstado(idOrden, nuevoEstado) {
         if (!result.isConfirmed) return;
     }
 
+    if (botonEstado) {
+        toggleButtonLoading(botonEstado, true, 'Actualizando...');
+    }
+
     try {
         const response = await fetch('/Orden/CambiarEstado', {
             method: 'POST',
@@ -1374,6 +1404,10 @@ async function cambiarEstado(idOrden, nuevoEstado) {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al cambiar estado', 'error');
+    } finally {
+        if (botonEstado) {
+            toggleButtonLoading(botonEstado, false);
+        }
     }
 }
 

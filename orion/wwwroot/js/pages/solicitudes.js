@@ -5,6 +5,30 @@ const btnNuevaSolicitud = document.querySelector("#btnNuevaSolicitud");
 const btnAgregarProducto = document.querySelector("#btnAgregarProducto");
 const productosContainer = document.querySelector("#productosLista");
 const frm = document.querySelector("#formularioSolicitud");
+const btnGuardarSolicitud = document.querySelector("#btnGuardarSolicitud");
+
+function toggleButtonLoading(button, isLoading, loadingText = "Procesando...") {
+    if (!button) return;
+
+    if (isLoading) {
+        if (!button.dataset.originalHtml) {
+            button.dataset.originalHtml = button.innerHTML;
+        }
+        button.disabled = true;
+        button.classList.add("opacity-75", "cursor-not-allowed");
+        button.innerHTML = `
+            <span class="inline-flex items-center">
+                <i class="fas fa-spinner fa-spin mr-2"></i>${loadingText}
+            </span>`;
+        return;
+    }
+
+    button.disabled = false;
+    button.classList.remove("opacity-75", "cursor-not-allowed");
+    if (button.dataset.originalHtml) {
+        button.innerHTML = button.dataset.originalHtml;
+    }
+}
 
 let gridApi;
 let contadorProductos = 0;
@@ -601,6 +625,7 @@ frm.addEventListener("submit", function (e) {
     const http = new XMLHttpRequest();
     const url = frm.id.value ? "/Solicitudes/Actualizar" : "/Solicitudes/Guardar";
 
+    toggleButtonLoading(btnGuardarSolicitud, true, "Guardando...");
     http.open("POST", url, true);
     http.send(dataMayusculas);
 
@@ -617,6 +642,14 @@ frm.addEventListener("submit", function (e) {
                 cargarSolicitudes();
             }
         }
+    };
+
+    http.onerror = function () {
+        alertaPersonalizada('error', 'Error al guardar la solicitud');
+    };
+
+    http.onloadend = function () {
+        toggleButtonLoading(btnGuardarSolicitud, false);
     };
 });
 
