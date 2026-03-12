@@ -12,7 +12,9 @@ const gridOptions = {
         { headerName: "Nombre", field: "nombre" },
         { headerName: "Nombre", field: "nomCompleto" },
         { headerName: "Tipo", field: "idTipo" },
-        { headerName: "Área", field: "area", filter: true },
+        { headerName: "Area", field: "area", filter: true },
+        { headerName: "Correo", field: "email", filter: true },
+        { headerName: "Correo Responsable", field: "emailResponsable", filter: true },
         {
             headerName: "Estado",
             field: "estado",
@@ -30,7 +32,6 @@ const gridOptions = {
                 }
             }
         },
-        { headerName: "ID Usuario", field: "idusuario" },
         {
             headerName: "Acciones",
             field: "acciones",

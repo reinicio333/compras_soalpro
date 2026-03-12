@@ -36,7 +36,7 @@ namespace orion.Controllers
         {
             try
             {
-                if (model.Id == 0) // Nuevo usuario
+                if (model.Id == 0)
                 {
                     if (_context.Usuarios.Any(d => d.Nombre == model.Nombre))
                     {
@@ -51,7 +51,7 @@ namespace orion.Controllers
                     var nuevoUsuario = new Usuario
                     {
                         Nombre = model.Nombre,
-                        Contraseña = Utilidades.EncriptarClave(model.Contraseña), // siempre encriptada
+                        Contraseña = Utilidades.EncriptarClave(model.Contraseña),
                         IdTipo = model.IdTipo,
                         Estado = model.Estado,
                         NomCompleto = model.NomCompleto,

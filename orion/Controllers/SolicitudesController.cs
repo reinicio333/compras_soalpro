@@ -40,28 +40,6 @@ namespace orion.Controllers
         }
 
 
-        private static string ConstruirTablaProductosHtml(IEnumerable<DetalleSolicitudes> productos)
-        {
-            var filas = string.Join("", productos.Select(p =>
-                $"<tr><td style='border:1px solid #e5e7eb;padding:8px'>{p.Descripcion}</td><td style='border:1px solid #e5e7eb;padding:8px'>{p.Proveedor}</td><td style='border:1px solid #e5e7eb;padding:8px'>{p.Cantidad}</td><td style='border:1px solid #e5e7eb;padding:8px'>{p.Unidad}</td></tr>"));
-
-            return $@"<table style='width:100%;border-collapse:collapse;font-size:14px'>
-<tr>
-<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Descripción</th>
-<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Proveedor</th>
-<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Cantidad</th>
-<th style='border:1px solid #e5e7eb;padding:8px;background:#f9fafb'>Unidad</th>
-</tr>{filas}</table>";
-        }
-
-        private static string ConstruirResumenSolicitudHtml(Solicitudes solicitud)
-        {
-            return $@"<p><strong>Número:</strong> {solicitud.Id}</p>
-<p><strong>Fecha:</strong> {solicitud.Fecha:dd/MM/yyyy}</p>
-<p><strong>Referencia:</strong> {solicitud.Referencia}</p>
-<p><strong>Solicitante:</strong> {solicitud.Solicitante}</p>";
-        }
-
         private static List<int> ObtenerIndicesProductos(IFormCollection form)
         {
             var regexIndice = new Regex(@"^productos\[(\d+)\]\[codigo\]$", RegexOptions.Compiled);
@@ -192,8 +170,19 @@ namespace orion.Controllers
 
                     if (destinatarios.Any())
                     {
-                        var cuerpo = ConstruirResumenSolicitudHtml(solicitud) + ConstruirTablaProductosHtml(productos);
-                        await _emailService.EnviarAsync(destinatarios, $"Nueva Solicitud de Compra #{solicitud.Id}", cuerpo);
+                        var productosEmail = productos.Select(p => (p.Descripcion, p.Proveedor, p.Cantidad, p.Unidad));
+                        await _emailService.EnviarAsync(
+                            destinatarios,
+                            $"Nueva Solicitud de Compra #{solicitud.Id}",
+                            EmailService.NotificacionConProductos(
+                                solicitud.Id.ToString(),
+                                solicitud.Fecha.ToString("dd/MM/yyyy"),
+                                solicitud.Referencia ?? "-",
+                                solicitud.Solicitante ?? "-",
+                                productosEmail
+                            ),
+                            TipoNotificacion.Normal
+                        );
                     }
                 }
                 catch (Exception exEmail)
@@ -363,8 +352,19 @@ namespace orion.Controllers
                         var detallesSolicitud = await _context.DetalleSolicitudes
                             .Where(d => d.IdSolicitud == idSolicitud)
                             .ToListAsync();
-                        var cuerpo = ConstruirResumenSolicitudHtml(solicitud) + ConstruirTablaProductosHtml(detallesSolicitud);
-                        await _emailService.EnviarAsync(destinatarios, $"Solicitud #{idSolicitud} ha sido actualizada", cuerpo);
+                        var productosEmail = detallesSolicitud.Select(p => (p.Descripcion, p.Proveedor, p.Cantidad, p.Unidad));
+                        await _emailService.EnviarAsync(
+                            destinatarios,
+                            $"Solicitud #{idSolicitud} ha sido actualizada",
+                            EmailService.NotificacionActualizada(
+                                idSolicitud.ToString(),
+                                solicitud.Fecha.ToString("dd/MM/yyyy"),
+                                solicitud.Referencia ?? "-",
+                                solicitud.Solicitante ?? "-",
+                                productosEmail
+                            ),
+                            TipoNotificacion.Actualizacion
+                        );
                     }
                 }
                 catch
@@ -437,9 +437,17 @@ namespace orion.Controllers
 
                     if (destinatarios.Any())
                     {
-                        var cuerpo = ConstruirResumenSolicitudHtml(solicitudCopia)
-                            + "<p>Esta solicitud ha sido eliminada del sistema.</p>";
-                        await _emailService.EnviarAsync(destinatarios, $"Solicitud #{id} ha sido eliminada", cuerpo);
+                        await _emailService.EnviarAsync(
+                            destinatarios,
+                            $"Solicitud #{id} ha sido eliminada",
+                            EmailService.NotificacionEliminada(
+                                solicitudCopia.Id.ToString(),
+                                solicitudCopia.Fecha.ToString("dd/MM/yyyy"),
+                                solicitudCopia.Referencia ?? "-",
+                                solicitudCopia.Solicitante ?? "-"
+                            ),
+                            TipoNotificacion.Eliminado
+                        );
                     }
                 }
                 catch

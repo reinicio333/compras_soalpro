@@ -327,20 +327,42 @@ namespace orion.Controllers
                             (sp, ds) => ds.Proveedor)
                         .FirstOrDefaultAsync();
 
+                    // Obtener solicitudes vinculadas
+                    var solicitudesVinculadas = await (
+                        from sp in _context.SolicitudPrecio
+                        where sp.IdSolicitudPrecio == orden.IdSolicitudPrecio
+                        join ds in _context.DetalleSolicitudes on sp.IdDetalleSolicitud equals ds.Id.ToString()
+                        join sol in _context.Solicitudes on ds.IdSolicitud equals sol.Id
+                        select new { sol.Id, sol.Solicitante }
+                    ).Distinct().ToListAsync();
+
+                    var solicitudesEmail = new List<(string, string)>();
+                    foreach (var sol in solicitudesVinculadas)
+                    {
+                        var usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.Nombre == sol.Solicitante);
+                        var nombreCompleto = !string.IsNullOrWhiteSpace(usuario?.NomCompleto)
+                            ? usuario.NomCompleto
+                            : sol.Solicitante;
+                        solicitudesEmail.Add((sol.Id.ToString(), nombreCompleto));
+                    }
+
                     var destinatarios = await ObtenerSolicitantesOrdenAsync(orden);
                     if (destinatarios.Any())
                     {
                         await _emailService.EnviarAsync(
                             destinatarios,
                             $"Orden de Compra #{orden.Id} ha sido creada",
-                            HtmlResumenOrden(orden, proveedor, "<p><strong>Estado actual:</strong> Creado</p><p>Su solicitud ha sido convertida en una orden de compra.</p>")
+                            EmailService.NotificacionCreada(
+                                orden.Id.ToString(),
+                                proveedor ?? "-",
+                                orden.Fecha?.ToString("dd/MM/yyyy") ?? "",
+                                solicitudesEmail
+                            ),
+                            TipoNotificacion.Normal
                         );
                     }
                 }
-                catch
-                {
-                    // No interrumpir el flujo principal.
-                }
+                catch { }
 
                 return Json(new { tipo = "success", mensaje = "Orden de compra guardada correctamente", id = orden.Id });
             }
@@ -791,20 +813,7 @@ namespace orion.Controllers
 
 
 
-        private static string HtmlResumenOrden(OrdenCompra orden, string? proveedor, string? extra = null)
-        {
-            var contenido = $"<p><strong>Número de orden:</strong> {orden.Id}</p>"
-                + $"<p><strong>Fecha:</strong> {orden.Fecha:dd/MM/yyyy}</p>"
-                + $"<p><strong>Proveedor:</strong> {proveedor}</p>";
-
-            if (!string.IsNullOrWhiteSpace(extra))
-            {
-                contenido += extra;
-            }
-
-            return contenido;
-        }
-
+       
         private async Task<List<(string Email, string Nombre)>> ObtenerSolicitantesOrdenAsync(OrdenCompra orden)
         {
             var idsSolicitudes = await (
@@ -920,9 +929,19 @@ namespace orion.Controllers
 
                         if (destinatarios.Any())
                         {
+
                             var solicitantesTexto = string.Join(", ", solicitantes.Select(s => s.Nombre));
-                            await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} requiere su Pre-autorización",
-                                HtmlResumenOrden(orden, proveedor, $"<p><strong>Solicitante(s):</strong> {solicitantesTexto}</p><p>Esta orden requiere su revisión y pre-autorización.</p>"));
+                            await _emailService.EnviarAsync(
+                                destinatarios,
+                                $"Orden #{datos.IdOrden} requiere su Pre-autorización",
+                                EmailService.NotificacionPreAutorizacion(
+                                    datos.IdOrden.ToString(),
+                                    proveedor ?? "-",
+                                    DateTime.Now.ToString("dd/MM/yyyy"),
+                                    solicitantesTexto
+                                ),
+                                TipoNotificacion.PreAutorizacion
+                            );
                         }
                     }
                     else if (datos.NuevoEstado == 3 || datos.NuevoEstado == 9 || datos.NuevoEstado == 11)
@@ -947,18 +966,39 @@ namespace orion.Controllers
                         {
                             if (datos.NuevoEstado == 3)
                             {
-                                await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} ha sido APROBADA",
-                                    HtmlResumenOrden(orden, proveedor, "<p style='color:#166534;font-weight:bold'>La orden ha sido aprobada.</p>"));
+                                await _emailService.EnviarAsync(
+                                    destinatarios,
+                                    $"Orden #{datos.IdOrden} ha sido APROBADA",
+                                    EmailService.NotificacionAprobacion(datos.IdOrden.ToString(), proveedor ?? "-", DateTime.Now.ToString("dd/MM/yyyy")),
+                                    TipoNotificacion.Aprobacion
+                                );
                             }
                             else if (datos.NuevoEstado == 9)
                             {
-                                await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} ha sido recibida en almacén",
-                                    HtmlResumenOrden(orden, proveedor, $"<p><strong>Fecha de recepción:</strong> {DateTime.Now:dd/MM/yyyy}</p><p>Los productos han sido recibidos en almacén.</p>"));
+                                await _emailService.EnviarAsync(
+                                    destinatarios,
+                                    $"Orden #{datos.IdOrden} ha sido recibida en almacén",
+                                    EmailService.NotificacionRecepcion(
+                                        datos.IdOrden.ToString(),
+                                        proveedor ?? "-",
+                                        DateTime.Now.ToString("dd/MM/yyyy")
+                                    ),
+                                    TipoNotificacion.Recepcion
+                                );
                             }
                             else if (datos.NuevoEstado == 11)
                             {
-                                await _emailService.EnviarAsync(destinatarios, $"Orden #{datos.IdOrden} ha sido RECHAZADA",
-                                    HtmlResumenOrden(orden, proveedor, $"<p style='color:#991b1b;background:#fee2e2;padding:10px;border-radius:6px'><strong>Motivo:</strong> {datos.Observacion}</p><p>La orden ha sido rechazada. Revise el motivo indicado.</p>"));
+
+                                await _emailService.EnviarAsync(
+                                    destinatarios,
+                                    $"Orden #{datos.IdOrden} ha sido RECHAZADA",
+                                    EmailService.NotificacionRechazo(
+                                        datos.IdOrden.ToString(),
+                                        proveedor ?? "-",
+                                        datos.Observacion ?? "Sin motivo"
+                                    ),
+                                    TipoNotificacion.Rechazo
+                                );
                             }
                         }
                     }
