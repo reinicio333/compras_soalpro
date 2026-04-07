@@ -546,11 +546,23 @@ namespace orion.Servicios
 
                 row.RelativeItem().Column(col =>
                 {
+                    var firmaRevisado = !string.IsNullOrWhiteSpace(datos.RevisadoPorFirmaPath)
+                        ? CargarImagen(datos.RevisadoPorFirmaPath)
+                        : null;
+
                     col.Item().AlignCenter().Element(e =>
                     {
-                        e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
-                         .AlignCenter().AlignMiddle()
-                         .Text(datos.RevisadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                        var contenedor = e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
+                            .AlignCenter().AlignMiddle();
+
+                        if (firmaRevisado != null)
+                        {
+                            contenedor.Padding(4).Image(firmaRevisado, ImageScaling.FitArea);
+                        }
+                        else
+                        {
+                            contenedor.Text(datos.RevisadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                        }
                     });
                     col.Item().Height(5);
                     col.Item().AlignCenter()

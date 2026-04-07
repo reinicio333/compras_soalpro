@@ -1252,6 +1252,7 @@ namespace orion.Controllers
                 .FirstOrDefaultAsync(h => h.IdOrden == orden.Id && h.IdEstadoNuevo == 2);
 
             var revisadoPor = "";
+            var revisadoPorFirmaPath = "";
             if (historialRevision != null)
             {
                 var usuarioReviso = await _context.Usuarios
@@ -1259,6 +1260,7 @@ namespace orion.Controllers
                 revisadoPor = usuarioReviso?.NomCompleto != null && usuarioReviso.NomCompleto != ""
                     ? usuarioReviso.Nombre + " - " + usuarioReviso.NomCompleto
                     : historialRevision.Usuario ?? "";
+                revisadoPorFirmaPath = usuarioReviso?.FirmaPath ?? "";
             }
             var aprobadorTexto = "";
             if (!string.IsNullOrWhiteSpace(orden.Aprobador))
@@ -1297,6 +1299,7 @@ namespace orion.Controllers
                 ElaboradoPor = !string.IsNullOrEmpty(solicitantesTextoAutor) ? solicitantesTextoAutor : elaboradoPor,
                 AutorizadoPor = autorizadoPor,
                 RevisadoPor = revisadoPor,
+                RevisadoPorFirmaPath = revisadoPorFirmaPath,
                 Aprobador = aprobadorTexto,
                 Rol = "",
                 IdAreaCorrespondencia = orden.IdAreaCorrespondencia ?? 0,
@@ -1596,6 +1599,7 @@ namespace orion.Controllers
         public string ElaboradoPor { get; set; }
         public string AutorizadoPor { get; set; }
         public string RevisadoPor { get; set; }
+        public string RevisadoPorFirmaPath { get; set; }
         public string Aprobador { get; set; }
         public int IdAreaCorrespondencia { get; set; }
         public string CorrespondeAsc { get; set; }
