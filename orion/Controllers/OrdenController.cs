@@ -1239,6 +1239,7 @@ namespace orion.Controllers
                 .FirstOrDefaultAsync(h => h.IdOrden == orden.Id && h.IdEstadoNuevo == 3);
 
             var autorizadoPor = "";
+            var autorizadoPorFirmaPath = "";
             if (historialAprobacion != null)
             {
                 var usuarioAutorizo = await _context.Usuarios
@@ -1246,12 +1247,14 @@ namespace orion.Controllers
                 autorizadoPor = usuarioAutorizo?.NomCompleto != null && usuarioAutorizo.NomCompleto != ""
                     ? usuarioAutorizo.Nombre + " - " + usuarioAutorizo.NomCompleto
                     : historialAprobacion.Usuario ?? "";
+                autorizadoPorFirmaPath = usuarioAutorizo?.FirmaPath ?? "";
             }
             // Revisado Por (estado 2 - Pre-autorizado)
             var historialRevision = await _context.HistorialEstadoOrden
                 .FirstOrDefaultAsync(h => h.IdOrden == orden.Id && h.IdEstadoNuevo == 2);
 
             var revisadoPor = "";
+            var revisadoPorFirmaPath = "";
             if (historialRevision != null)
             {
                 var usuarioReviso = await _context.Usuarios
@@ -1259,6 +1262,7 @@ namespace orion.Controllers
                 revisadoPor = usuarioReviso?.NomCompleto != null && usuarioReviso.NomCompleto != ""
                     ? usuarioReviso.Nombre + " - " + usuarioReviso.NomCompleto
                     : historialRevision.Usuario ?? "";
+                revisadoPorFirmaPath = usuarioReviso?.FirmaPath ?? "";
             }
             var aprobadorTexto = "";
             if (!string.IsNullOrWhiteSpace(orden.Aprobador))
@@ -1296,7 +1300,9 @@ namespace orion.Controllers
                 Solicitante = solicitantesTexto,
                 ElaboradoPor = !string.IsNullOrEmpty(solicitantesTextoAutor) ? solicitantesTextoAutor : elaboradoPor,
                 AutorizadoPor = autorizadoPor,
+                AutorizadoPorFirmaPath = autorizadoPorFirmaPath,
                 RevisadoPor = revisadoPor,
+                RevisadoPorFirmaPath = revisadoPorFirmaPath,
                 Aprobador = aprobadorTexto,
                 Rol = "",
                 IdAreaCorrespondencia = orden.IdAreaCorrespondencia ?? 0,
@@ -1595,7 +1601,9 @@ namespace orion.Controllers
         public string NomContacto { get; set; }
         public string ElaboradoPor { get; set; }
         public string AutorizadoPor { get; set; }
+        public string AutorizadoPorFirmaPath { get; set; }
         public string RevisadoPor { get; set; }
+        public string RevisadoPorFirmaPath { get; set; }
         public string Aprobador { get; set; }
         public int IdAreaCorrespondencia { get; set; }
         public string CorrespondeAsc { get; set; }
