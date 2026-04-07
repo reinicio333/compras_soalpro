@@ -573,11 +573,23 @@ namespace orion.Servicios
 
                 row.RelativeItem().Column(col =>
                 {
+                    var firmaAutorizado = !string.IsNullOrWhiteSpace(datos.AutorizadoPorFirmaPath)
+                        ? CargarImagen(datos.AutorizadoPorFirmaPath)
+                        : null;
+
                     col.Item().AlignCenter().Element(e =>
                     {
-                        e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
-                         .AlignCenter().AlignMiddle()
-                         .Text(datos.AutorizadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                        var contenedor = e.Width(200).Height(60).Border(1).BorderColor(Colors.Black)
+                            .AlignCenter().AlignMiddle();
+
+                        if (firmaAutorizado != null)
+                        {
+                            contenedor.Padding(4).Image(firmaAutorizado, ImageScaling.FitArea);
+                        }
+                        else
+                        {
+                            contenedor.Text(datos.AutorizadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                        }
                     });
                     col.Item().Height(5);
                     col.Item().AlignCenter()
