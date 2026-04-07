@@ -276,7 +276,17 @@ async function cargarOrdenes() {
         .then(resp => resp.json())
         .then(data => {
             if (Array.isArray(data)) {
-                gridApi.setGridOption('rowData', data);
+                window._todasLasOrdenes = data; // guarda todas
+
+                if (window.tipoUsuario === 'ALMACEN') {
+                    document.getElementById('tabsAlmacen').classList.remove('hidden');
+                    // muestra solo estado 8 por defecto
+                    const filtradas = data.filter(o => o.idEstado === 8);
+                    gridApi.setGridOption('rowData', filtradas);
+                } else {
+                    gridApi.setGridOption('rowData', data);
+                }
+
                 gridApi.refreshCells({ force: true });
             }
         });
@@ -1272,7 +1282,21 @@ async function verEstadoOrden(id, botonAccion = null) {
 
             const contenedorEstados = document.getElementById('contenedor_estados');
             contenedorEstados.innerHTML = '';
+            // Sección recepción
+            const seccionRecepcion = document.getElementById('seccion_recepcion');
+            const recepcionTipoValor = document.getElementById('recepcion_tipo_valor');
+            const recepcionObsValor = document.getElementById('recepcion_obs_valor');
 
+            if (dataOrden.orden.idEstadoSolicitud >= 9 && dataOrden.orden.recepcionTipo) {
+                seccionRecepcion.classList.remove('hidden');
+                recepcionTipoValor.textContent = dataOrden.orden.recepcionTipo;
+                recepcionTipoValor.className = `ml-2 px-2 py-0.5 rounded text-xs font-semibold text-white ${dataOrden.orden.recepcionTipo === 'Parcial' ? 'bg-amber-600' : 'bg-slate-600'}`;
+                recepcionObsValor.textContent = dataOrden.orden.observacionRecepcion || 'Sin observación';
+            } else {
+                seccionRecepcion.classList.add('hidden');
+                recepcionTipoValor.textContent = '';
+                recepcionObsValor.textContent = '';
+            }
             const esImportacion = dataOrden.orden.esImportacion;
             const estadoActual = dataOrden.orden.idEstadoSolicitud;
 
@@ -1364,6 +1388,8 @@ async function cambiarEstado(idOrden, nuevoEstado, botonEstado = null) {
     const estadoNombre = estadosDisponibles.find(e => e.id === nuevoEstado)?.estado || 'este estado';
 
     let observacionAnulado = '';
+    let recepcionTipo = '';
+    let observacionRecepcion = '';
 
     if (nuevoEstado === 11) {
         const result = await Swal.fire({
@@ -1386,7 +1412,54 @@ async function cambiarEstado(idOrden, nuevoEstado, botonEstado = null) {
 
         if (!result.isConfirmed) return;
         observacionAnulado = result.value;
+    } else if (nuevoEstado === 9) {
+        const result = await Swal.fire({
+            title: 'Recepción de Almacén',
+            html: `
+            <div class="text-left space-y-3">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Tipo de Recepción:</label>
+                    <div class="flex gap-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="swal_recepcion_tipo" value="Completo" checked
+                                   class="w-4 h-4 text-blue-600">
+                            <span class="ml-2 text-sm text-gray-300">Completo</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="swal_recepcion_tipo" value="Parcial"
+                                   class="w-4 h-4 text-blue-600">
+                            <span class="ml-2 text-sm text-gray-300">Parcial</span>
+                        </label>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1">Observación:</label>
+                    <textarea id="swal_obs_recepcion" rows="3"
+                              class="w-full bg-gray-700 border border-gray-600 text-white text-sm rounded p-2"
+                              placeholder="Observaciones de la recepción..."></textarea>
+                </div>
+            </div>
+        `,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#6b7280',
+            confirmButtonText: 'Confirmar Recepción',
+            cancelButtonText: 'Cancelar',
+            background: '#1f2937',
+            color: '#ffffff',
+            preConfirm: () => {
+                const tipo = document.querySelector('input[name="swal_recepcion_tipo"]:checked')?.value || 'Completo';
+                const obs = document.getElementById('swal_obs_recepcion')?.value || '';
+                return { tipo, obs };
+            }
+        });
+
+        if (!result.isConfirmed) return;
+        recepcionTipo = result.value.tipo;
+        observacionRecepcion = result.value.obs;
     } else {
+        // bloque else original de confirmación simple
         const result = await Swal.fire({
             title: '¿Cambiar estado de la orden?',
             html: `¿Está seguro de cambiar el estado a <strong>${estadoNombre}</strong>?`,
@@ -1414,7 +1487,9 @@ async function cambiarEstado(idOrden, nuevoEstado, botonEstado = null) {
             body: JSON.stringify({
                 idOrden: idOrden,
                 nuevoEstado: nuevoEstado,
-                observacion: observacionAnulado || null
+                observacion: observacionAnulado || null,
+                recepcionTipo: recepcionTipo || null,
+                observacionRecepcion: observacionRecepcion || null
             })
         });
 
@@ -1474,3 +1549,25 @@ function autocompletarNit(razon) {
     document.getElementById('nit_factura').value = nits[razon] || '';
 }
 
+/* PERFIL ALMACEN */
+let tabActual = 'enviado';
+
+function cambiarTab(tab) {
+    tabActual = tab;
+
+    document.getElementById('tabEnviado').className =
+        tab === 'enviado'
+            ? 'tab-btn px-4 py-2 text-sm font-medium text-white bg-gray-700 border-b-2 border-blue-500'
+            : 'tab-btn px-4 py-2 text-sm font-medium text-gray-400 hover:text-white';
+
+    document.getElementById('tabRecepcion').className =
+        tab === 'recepcion'
+            ? 'tab-btn px-4 py-2 text-sm font-medium text-white bg-gray-700 border-b-2 border-blue-500'
+            : 'tab-btn px-4 py-2 text-sm font-medium text-gray-400 hover:text-white';
+
+    // Después
+    const filteredData = tab === 'enviado'
+        ? window._todasLasOrdenes?.filter(o => o.idEstado === 8) || []
+        : window._todasLasOrdenes?.filter(o => o.idEstado === 9 || o.idEstado === 10) || [];
+    gridApi.setGridOption('rowData', filteredData);
+}

@@ -83,6 +83,10 @@
                     .HasMaxLength(250)
                     .IsUnicode(false)
                     .HasColumnName("email_responsable");
+                entity.Property(e => e.FirmaPath)
+                    .HasMaxLength(500)
+                    .IsUnicode(false)
+                    .HasColumnName("firma_path");
             });
        
         // Configuración para Solicitudes
@@ -339,6 +343,15 @@
             entity.Property(e => e.RutasArchivos)
                 .HasColumnType("nvarchar(max)")
                 .HasColumnName("rutas_archivos");
+            entity.Property(e => e.RecepcionTipo)
+                .HasMaxLength(20)
+                .IsUnicode(false)
+                .HasColumnName("recepcion_tipo");
+
+            entity.Property(e => e.ObservacionRecepcion)
+                .HasMaxLength(500)
+                .IsUnicode(false)
+                .HasColumnName("observacion_recepcion");
 
             // Relaciones
             entity.HasOne(e => e.SolicitudPrecio)

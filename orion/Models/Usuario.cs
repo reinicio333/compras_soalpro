@@ -21,4 +21,5 @@ public partial class Usuario
     public string? Area { get; set; }
     public string? Email { get; set; }
     public string? EmailResponsable { get; set; }
+    public string? FirmaPath { get; set; }
 }

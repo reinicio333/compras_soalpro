@@ -50,11 +50,13 @@ namespace orion.Controllers
                     .Include(o => o.Estado)
                     .Include(o => o.SolicitudPrecio);
 
-                if (usuarioActual?.IdTipo == "ADMINISTRADOR" ||
-                    usuarioActual?.IdTipo == "ALMACEN" ||
-                    usuarioActual?.IdTipo == "COMPRAS")
+                if (usuarioActual?.IdTipo == "ADMINISTRADOR" || usuarioActual?.IdTipo == "COMPRAS")
                 {
                     // Ven todas las ordenes, sin filtro
+                }
+                else if (usuarioActual?.IdTipo == "ALMACEN")
+                {
+                    query = query.Where(o => o.IdEstadoSolicitud == 8 || o.IdEstadoSolicitud == 9 || o.IdEstadoSolicitud == 10);
                 }
                 else if (usuarioActual?.IdTipo == "GERENCIA")
                 {
@@ -118,6 +120,8 @@ namespace orion.Controllers
                         o.Solicitante,
                         Estado = o.Estado != null ? o.Estado.Estado : "Sin Estado",
                         o.EsImportacion,
+                        o.RecepcionTipo,
+                        o.ObservacionRecepcion,
                         IdEstado = o.IdEstadoSolicitud,
                         FechaEstado = _context.HistorialEstadoOrden
                             .Where(h => h.IdOrden == o.Id)
@@ -627,7 +631,9 @@ namespace orion.Controllers
                         orden.Aprobador,
                         orden.IdAreaCorrespondencia,
                         orden.CorrespondeAsc,
-                        Estado = orden.Estado?.Estado
+                        Estado = orden.Estado?.Estado,
+                        orden.RecepcionTipo,
+                        orden.ObservacionRecepcion
                     },
                     productos
                 });
@@ -849,6 +855,11 @@ namespace orion.Controllers
 
                 var estadoAnterior = orden.IdEstadoSolicitud;
                 orden.IdEstadoSolicitud = datos.NuevoEstado;
+                if (datos.NuevoEstado == 9)
+                {
+                    orden.RecepcionTipo = datos.RecepcionTipo;
+                    orden.ObservacionRecepcion = datos.ObservacionRecepcion;
+                }
 
                 // Si se anula, guardar observación
                 if (datos.NuevoEstado == 11 && !string.IsNullOrEmpty(datos.Observacion))
@@ -1651,6 +1662,8 @@ namespace orion.Controllers
         public int IdOrden { get; set; }
         public int NuevoEstado { get; set; }
         public string? Observacion { get; set; }
+        public string? RecepcionTipo { get; set; }
+        public string? ObservacionRecepcion { get; set; }
     }
 
     public class GenerarPdfDto

@@ -141,6 +141,9 @@ btnNuevoUsuario.addEventListener("click", function () {
     title.textContent = "NUEVO USUARIO";
     frm.id.value = '';
     frm.reset();
+    document.getElementById('firmaActualContainer').classList.add('hidden');
+    document.getElementById('firmaNuevaContainer').classList.add('hidden');
+    document.getElementById('firmaFile').value = '';
 
     const modal = new Modal(modalRegistroUsuario);
     modal.show();
@@ -211,6 +214,15 @@ function editarUsuario(id) {
             frm.Email.value = res.email || '';
             frm.EmailResponsable.value = res.emailResponsable || '';
             frm.Area.value = res.area || '';
+            // Firma
+            if (res.firmaPath) {
+                document.getElementById('firmaActualImg').src = res.firmaPath;
+                document.getElementById('firmaActualContainer').classList.remove('hidden');
+            } else {
+                document.getElementById('firmaActualContainer').classList.add('hidden');
+            }
+            document.getElementById('firmaNuevaContainer').classList.add('hidden');
+            document.getElementById('firmaFile').value = '';
             const targetEl = document.getElementById('modalRegistroUsuario');
             const modal = new Modal(targetEl);
             modal.show();
@@ -288,3 +300,47 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 });
+
+function previsualizarFirma(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('firmaNuevaImg').src = e.target.result;
+        document.getElementById('firmaNuevaContainer').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+
+function cancelarFirma() {
+    document.getElementById('firmaFile').value = '';
+    document.getElementById('firmaNuevaContainer').classList.add('hidden');
+}
+
+function eliminarFirma() {
+    const id = frm.id.value;
+    if (!id) return;
+    Swal.fire({
+        title: '¿ELIMINAR FIRMA?',
+        text: 'Se eliminará la firma del usuario',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4444',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'SÍ, ELIMINAR',
+        cancelButtonText: 'Cancelar',
+        background: '#1f2937',
+        color: '#ffffff'
+    }).then(result => {
+        if (result.isConfirmed) {
+            fetch(`/Usuarios/EliminarFirma/${id}`)
+                .then(r => r.json())
+                .then(res => {
+                    alertaPersonalizada(res.tipo, res.mensaje);
+                    if (res.tipo === 'success') {
+                        document.getElementById('firmaActualContainer').classList.add('hidden');
+                    }
+                });
+        }
+    });
+}

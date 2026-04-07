@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using orion.Recursos;
+using Microsoft.AspNetCore.Hosting;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace orion.Controllers
@@ -14,9 +15,12 @@ namespace orion.Controllers
     public class UsuariosController : Controller
     {
         private readonly OrionContext _context;
-        public UsuariosController(OrionContext context)
+        private readonly IWebHostEnvironment _env;
+
+        public UsuariosController(OrionContext context, IWebHostEnvironment env)
         {
             _context = context;
+            _env = env;
         }
 
         public IActionResult Index()
@@ -32,10 +36,21 @@ namespace orion.Controllers
         }
 
         [HttpPost]
-        public IActionResult Guardar([FromForm] Usuario model)
+        public async Task<IActionResult> Guardar([FromForm] Usuario model, IFormFile? firmaFile)
         {
             try
             {
+                string? nuevaRuta = null;
+                if (firmaFile != null && firmaFile.Length > 0)
+                {
+                    var carpeta = Path.Combine(_env.WebRootPath, "uploads", "firmas");
+                    Directory.CreateDirectory(carpeta);
+                    var nombreArchivo = $"firma_{Guid.NewGuid()}{Path.GetExtension(firmaFile.FileName)}";
+                    var rutaCompleta = Path.Combine(carpeta, nombreArchivo);
+                    using (var stream = new FileStream(rutaCompleta, FileMode.Create))
+                        await firmaFile.CopyToAsync(stream);
+                    nuevaRuta = $"/uploads/firmas/{nombreArchivo}";
+                }
                 if (model.Id == 0)
                 {
                     if (_context.Usuarios.Any(d => d.Nombre == model.Nombre))
@@ -58,7 +73,8 @@ namespace orion.Controllers
                         Idusuario = model.Idusuario,
                         Area = model.Area,
                         Email = model.Email,
-                        EmailResponsable = model.EmailResponsable
+                        EmailResponsable = model.EmailResponsable,
+                        FirmaPath = nuevaRuta
                     };
 
                     _context.Usuarios.Add(nuevoUsuario);
@@ -92,7 +108,8 @@ namespace orion.Controllers
                     {
                         usuarioExistente.Contraseña = Utilidades.EncriptarClave(model.Contraseña);
                     }
-
+                    if (nuevaRuta != null)
+                        usuarioExistente.FirmaPath = nuevaRuta;
                     _context.SaveChanges();
                     return Json(new { tipo = "success", mensaje = "Usuario actualizado con éxito" });
                 }
@@ -104,7 +121,22 @@ namespace orion.Controllers
         }
 
 
+        [HttpGet]
+        public async Task<IActionResult> EliminarFirma(int id)
+        {
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null) return Json(new { tipo = "error", mensaje = "Usuario no encontrado" });
 
+            if (!string.IsNullOrEmpty(usuario.FirmaPath))
+            {
+                var rutaFisica = Path.Combine(_env.WebRootPath, usuario.FirmaPath.TrimStart('/'));
+                if (System.IO.File.Exists(rutaFisica))
+                    System.IO.File.Delete(rutaFisica);
+                usuario.FirmaPath = null;
+                await _context.SaveChangesAsync();
+            }
+            return Json(new { tipo = "success", mensaje = "Firma eliminada" });
+        }
 
         public IActionResult GetUsuario(int id)
         {
