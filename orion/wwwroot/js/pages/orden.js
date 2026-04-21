@@ -129,6 +129,11 @@ const gridOptions = {
                             title="Descargar PDF">
                         <i class="fas fa-file-download text-sm"></i>
                     </button>
+                    <button onclick="descargarExcelOrden(${params.data.id}, this)"
+                            class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
+                            title="Descargar Excel">
+                        <i class="fas fa-file-excel text-sm"></i>
+                    </button>
             `;
                 }
 
@@ -149,6 +154,11 @@ const gridOptions = {
                         title="Descargar PDF">
                     <i class="fas fa-file-download text-sm"></i>
                 </button>
+                <button onclick="descargarExcelOrden(${params.data.id}, this)"
+                        class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
+                        title="Descargar Excel">
+                    <i class="fas fa-file-excel text-sm"></i>
+                </button>
             `;
                 }
                 if (window.tipoUsuario === 'GERENCIA') {
@@ -168,6 +178,11 @@ const gridOptions = {
                                 title="Descargar PDF">
                             <i class="fas fa-file-download text-sm"></i>
                         </button>
+                        <button onclick="descargarExcelOrden(${params.data.id}, this)"
+                                class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
+                                title="Descargar Excel">
+                            <i class="fas fa-file-excel text-sm"></i>
+                        </button>
                     `;
                 }
 
@@ -186,6 +201,11 @@ const gridOptions = {
                     class="px-3 py-1 text-green-600 hover:bg-green-700 hover:text-white rounded-lg transition-all"
                     title="Descargar PDF">
                 <i class="fas fa-file-download text-sm"></i>
+            </button>
+            <button onclick="descargarExcelOrden(${params.data.id}, this)"
+                    class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
+                    title="Descargar Excel">
+                <i class="fas fa-file-excel text-sm"></i>
             </button>
             ${esAprobadoOSuperior ? '' : `
                 <button onclick="editarOrden(${params.data.id})"
@@ -1227,6 +1247,45 @@ async function descargarPdfOrden(id, botonAccion = null) {
     } catch (error) {
         console.error('Error:', error);
         mostrarAlerta('Error al generar PDF', 'error');
+    } finally {
+        if (botonAccion) {
+            toggleButtonLoading(botonAccion, false);
+        }
+    }
+}
+
+async function descargarExcelOrden(id, botonAccion = null) {
+    if (botonAccion) {
+        toggleButtonLoading(botonAccion, true, '');
+    }
+
+    try {
+        const response = await fetch('/Orden/GenerarExcel', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ idOrden: id })
+        });
+
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `OC_${id}_${new Date().toLocaleDateString('es-ES').replace(/\//g, '')}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            mostrarAlerta('Excel descargado exitosamente', 'success');
+        } else {
+            mostrarAlerta('Error al generar Excel', 'error');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        mostrarAlerta('Error al generar Excel', 'error');
     } finally {
         if (botonAccion) {
             toggleButtonLoading(botonAccion, false);
