@@ -74,17 +74,17 @@ namespace orion.Servicios
                 row.CreateCell(3).SetCellValue(producto.FechaEntrega ?? "");
                 row.CreateCell(4).SetCellValue(producto.Caracteristicas ?? "");
                 row.CreateCell(5).SetCellValue(producto.Unidad ?? "");
-                row.CreateCell(6).SetCellValue(Convert.ToDouble(producto.Cantidad ?? 0));
+                row.CreateCell(6).SetCellValue(Convert.ToDouble(producto.Cantidad));
 
-                var precio = Convert.ToDouble(producto.Precio ?? 0);
+                var precio = Convert.ToDouble(producto.Precio);
                 row.CreateCell(7).SetCellValue(precio);
                 row.GetCell(7).CellStyle = estiloMoneda;
 
-                var total = precio * Convert.ToDouble(producto.Cantidad ?? 0);
+                var total = precio * Convert.ToDouble(producto.Cantidad);
                 row.CreateCell(8).SetCellValue(total);
                 row.GetCell(8).CellStyle = estiloMoneda;
 
-                totalGeneral += (producto.Precio ?? 0) * (producto.Cantidad ?? 0);
+                totalGeneral += (producto.Precio) * (producto.Cantidad);
             }
 
             var rowTotal = sheet.CreateRow(rowIndex);

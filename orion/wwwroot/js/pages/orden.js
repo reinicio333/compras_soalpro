@@ -129,11 +129,7 @@ const gridOptions = {
                             title="Descargar PDF">
                         <i class="fas fa-file-download text-sm"></i>
                     </button>
-                    <button onclick="descargarExcelOrden(${params.data.id}, this)"
-                            class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
-                            title="Descargar Excel">
-                        <i class="fas fa-file-excel text-sm"></i>
-                    </button>
+                    
             `;
                 }
 
@@ -154,11 +150,7 @@ const gridOptions = {
                         title="Descargar PDF">
                     <i class="fas fa-file-download text-sm"></i>
                 </button>
-                <button onclick="descargarExcelOrden(${params.data.id}, this)"
-                        class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
-                        title="Descargar Excel">
-                    <i class="fas fa-file-excel text-sm"></i>
-                </button>
+                
             `;
                 }
                 if (window.tipoUsuario === 'GERENCIA') {
@@ -178,11 +170,7 @@ const gridOptions = {
                                 title="Descargar PDF">
                             <i class="fas fa-file-download text-sm"></i>
                         </button>
-                        <button onclick="descargarExcelOrden(${params.data.id}, this)"
-                                class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
-                                title="Descargar Excel">
-                            <i class="fas fa-file-excel text-sm"></i>
-                        </button>
+                        
                     `;
                 }
 
@@ -202,11 +190,7 @@ const gridOptions = {
                     title="Descargar PDF">
                 <i class="fas fa-file-download text-sm"></i>
             </button>
-            <button onclick="descargarExcelOrden(${params.data.id}, this)"
-                    class="px-3 py-1 text-emerald-500 hover:bg-emerald-700 hover:text-white rounded-lg transition-all"
-                    title="Descargar Excel">
-                <i class="fas fa-file-excel text-sm"></i>
-            </button>
+            
             ${esAprobadoOSuperior ? '' : `
                 <button onclick="editarOrden(${params.data.id})"
                         class="px-3 py-1 text-yellow-600 hover:bg-yellow-700 hover:text-white rounded-lg transition-all"
