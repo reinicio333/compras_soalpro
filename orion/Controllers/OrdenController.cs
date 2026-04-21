@@ -1113,6 +1113,35 @@ namespace orion.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> GenerarExcel([FromBody] GenerarPdfDto datos)
+        {
+            try
+            {
+                var orden = await _context.OrdenCompra
+                    .Include(o => o.Estado)
+                    .FirstOrDefaultAsync(o => o.Id == datos.IdOrden);
+
+                if (orden == null)
+                {
+                    return NotFound();
+                }
+
+                var ordenDto = await ConvertirOrdenADto(orden);
+                var excelService = new ReporteOrdenCompraExcelService();
+                var excelBytes = excelService.GenerarExcelOrdenCompra(ordenDto);
+
+                return File(
+                    excelBytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"OC_{orden.Id}_{DateTime.Now:ddMMyyyy}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error al generar Excel: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> GenerarPdfVistaPrevia([FromBody] GenerarPdfDto datos)
         {
             try
