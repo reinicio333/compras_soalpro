@@ -102,5 +102,50 @@ namespace orion.Servicios
             workbook.Write(stream);
             return stream.ToArray();
         }
+
+        public byte[] GenerarExcelReporteGeneral(List<ReporteGeneralOrdenDto> ordenes)
+        {
+            IWorkbook workbook = new XSSFWorkbook();
+            var sheet = workbook.CreateSheet("ReporteGeneral");
+
+            var estiloHeader = workbook.CreateCellStyle();
+            var fuenteHeader = workbook.CreateFont();
+            fuenteHeader.IsBold = true;
+            estiloHeader.SetFont(fuenteHeader);
+            estiloHeader.FillForegroundColor = IndexedColors.Grey25Percent.Index;
+            estiloHeader.FillPattern = FillPattern.SolidForeground;
+
+            var rowHeader = sheet.CreateRow(0);
+            string[] columnas = { "ID", "Fecha", "Referencia", "Solicitante", "Proveedor", "Tipo", "Estado", "Fecha Estado" };
+            for (var i = 0; i < columnas.Length; i++)
+            {
+                var cell = rowHeader.CreateCell(i);
+                cell.SetCellValue(columnas[i]);
+                cell.CellStyle = estiloHeader;
+            }
+
+            var rowIndex = 1;
+            foreach (var orden in ordenes)
+            {
+                var row = sheet.CreateRow(rowIndex++);
+                row.CreateCell(0).SetCellValue(orden.Id);
+                row.CreateCell(1).SetCellValue(orden.Fecha?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(2).SetCellValue(orden.Referencia ?? "");
+                row.CreateCell(3).SetCellValue(orden.Solicitante ?? "");
+                row.CreateCell(4).SetCellValue(orden.Proveedor ?? "");
+                row.CreateCell(5).SetCellValue(orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
+                row.CreateCell(6).SetCellValue(orden.Estado ?? "Sin Estado");
+                row.CreateCell(7).SetCellValue(orden.FechaEstado?.ToString("dd/MM/yyyy HH:mm") ?? "");
+            }
+
+            for (var i = 0; i < columnas.Length; i++)
+            {
+                sheet.AutoSizeColumn(i);
+            }
+
+            using var stream = new MemoryStream();
+            workbook.Write(stream);
+            return stream.ToArray();
+        }
     }
 }

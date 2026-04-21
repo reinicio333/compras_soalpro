@@ -271,6 +271,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     document.getElementById('btnNuevaOrden').addEventListener('click', abrirModalNuevaOrden);
+    document.getElementById('btnReporteGeneralOrdenes').addEventListener('click', descargarReporteGeneralOrdenes);
 
     document.getElementById('fecha_orden').addEventListener('change', function () {
         actualizarTipoCambioPorFecha(this.value);
@@ -1254,42 +1255,32 @@ async function descargarPdfOrden(id, botonAccion = null) {
     }
 }
 
-async function descargarExcelOrden(id, botonAccion = null) {
-    if (botonAccion) {
-        toggleButtonLoading(botonAccion, true, '');
-    }
-
+async function descargarReporteGeneralOrdenes() {
+    const boton = document.getElementById('btnReporteGeneralOrdenes');
+    toggleButtonLoading(boton, true, 'Generando...');
     try {
-        const response = await fetch('/Orden/GenerarExcel', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ idOrden: id })
-        });
+        const response = await fetch('/Orden/GenerarReporteGeneralExcel');
 
         if (response.ok) {
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `OC_${id}_${new Date().toLocaleDateString('es-ES').replace(/\//g, '')}.xlsx`;
+            a.download = `Reporte_Ordenes_${new Date().toLocaleDateString('es-ES').replace(/\//g, '')}.xlsx`;
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
             document.body.removeChild(a);
 
-            mostrarAlerta('Excel descargado exitosamente', 'success');
+            mostrarAlerta('Reporte general descargado exitosamente', 'success');
         } else {
-            mostrarAlerta('Error al generar Excel', 'error');
+            mostrarAlerta('Error al generar reporte general', 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        mostrarAlerta('Error al generar Excel', 'error');
+        mostrarAlerta('Error al generar reporte general', 'error');
     } finally {
-        if (botonAccion) {
-            toggleButtonLoading(botonAccion, false);
-        }
+        toggleButtonLoading(boton, false);
     }
 }
 
