@@ -535,7 +535,7 @@ async function cargarDetallesPorProveedor(proveedor) {
                         <td class="px-2 py-3 text-white">${d.descripcion || ''}</td>
                         <td class="px-2 py-3">
                             <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed"
-                                   value="${d.fechaEntrega || ''}" readonly>
+                                   value="${d.frequerimiento ? d.frequerimiento.split('T')[0] : (d.fechaEntrega || '')}" readonly>
                         </td>
                         <td class="px-2 py-3 text-white">${d.caracteristicas || ''}</td>
                         <td class="px-2 py-3 text-center text-white">${d.unidad || ''}</td>
@@ -677,7 +677,7 @@ function recopilarDatos() {
     });
 
     if (!datos.idAreaCorrespondencia) {
-        mostrarAlerta('Debe seleccionar CORRESPONDE A.S.C.', 'warning');
+        mostrarAlerta('Debe seleccionar CORRESPONDE A PLANTA', 'warning');
         return null;
     }
 
@@ -690,8 +690,31 @@ function recopilarDatos() {
         mostrarAlerta('Debe seleccionar al menos un producto', 'warning');
         return null;
     }
+    for (const fila of document.querySelectorAll('#body_detalle tr')) {
+        const check = fila.querySelector('.chk-producto');
+        if (!check || !check.checked) continue;
+
+        const cantidadInput = fila.querySelector('.cantidad-producto');
+        const precioInput = fila.querySelector('.precio-producto');
+
+        const cantidad = parseFloat(cantidadInput?.value);
+        const precio = parseFloat(precioInput?.value);
+
+        if (isNaN(cantidad) || cantidad <= 0) {
+            mostrarAlerta('LA CANTIDAD DEBE SER MAYOR A CERO', 'warning');
+            cantidadInput?.focus();
+            return null;
+        }
+
+        if (isNaN(precio) || precio <= 0) {
+            mostrarAlerta('EL PRECIO DEBE SER MAYOR A CERO', 'warning');
+            precioInput?.focus();
+            return null;
+        }
+    }
 
     return datos;
+
 }
 
 async function guardarOrden() {
@@ -779,9 +802,19 @@ async function editarOrden(id) {
         document.getElementById('razon_social_factura').value = data.orden.razonSocial || '';
         document.getElementById('nit_factura').value = data.orden.nit || '';
 
+        const select = document.getElementById('select_proveedor');
+        const opcionExiste = Array.from(select.options).some(o => o.value === data.orden.proveedor);
+        if (!opcionExiste && data.orden.proveedor) {
+            const option = document.createElement('option');
+            option.value = data.orden.proveedor;
+            option.textContent = data.orden.proveedor;
+            select.appendChild(option);
+        }
+        select.value = data.orden.proveedor || '';
         const idsEnOrden = new Set(data.productos.map(p => p.idDetalleSolicitud));
 
-        const responseDetalles = await fetch(`/Orden/GetDetallesPorProveedor?proveedor=${encodeURIComponent(data.orden.proveedor)}`);
+        const idSolicitudPrecio = data.orden.idSolicitudPrecio || 0;
+        const responseDetalles = await fetch(`/Orden/GetDetallesPorProveedor?proveedor=${encodeURIComponent(data.orden.proveedor)}&idSolicitudPrecio=${idSolicitudPrecio}`);
         const todosProductos = await responseDetalles.json();
 
         const productosSoloDisponibles = Array.isArray(todosProductos)
@@ -802,7 +835,8 @@ async function editarOrden(id) {
                         <td class="px-2 py-3 text-center text-white">${index++}</td>
                         <td class="px-2 py-3 text-white">${p.descripcion || ''}</td>
                         <td class="px-2 py-3">
-                            <input type="date" class="fecha-entrega bg-gray-800 border border-gray-700 text-white text-xs rounded p-1 w-full">
+                            <input type="date" class="fecha-entrega bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded p-1 w-full cursor-not-allowed"
+                             value="${p.frequerimiento ? p.frequerimiento.toString().split('T')[0] : (p.fechaEntrega || '')}" readonly>
                         </td>
                         <td class="px-2 py-3 text-white">${p.caracteristicas || ''}</td>
                         <td class="px-2 py-3 text-center text-white">${p.unidad || ''}</td>
@@ -884,15 +918,7 @@ async function editarOrden(id) {
             </tr>
         `;
 
-        const select = document.getElementById('select_proveedor');
-        const opcionExiste = Array.from(select.options).some(o => o.value === data.orden.proveedor);
-        if (!opcionExiste && data.orden.proveedor) {
-            const option = document.createElement('option');
-            option.value = data.orden.proveedor;
-            option.textContent = data.orden.proveedor;
-            select.appendChild(option);
-        }
-        select.value = data.orden.proveedor || '';
+     
 
         const modal = new Modal(document.getElementById('modalOrden'));
         modal.show();

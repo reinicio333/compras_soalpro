@@ -26,6 +26,10 @@
     .selectize-dropdown .option.active {
         background: #f3f4f6;
     }
+
+    .grid-cols-13 {
+        grid-template-columns: repeat(13, minmax(0, 1fr));
+    }
 </style>
 <div class="space-y-6">
     <!-- Header con título -->
@@ -60,7 +64,7 @@
 
 <!-- Modal Nueva Solicitud -->
 <div id="modalSolicitud" tabindex="-1" aria-hidden="true" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-8xl max-h-full">
+    <div class="relative p-4 w-full max-w-9xl max-h-full">
         <div class="relative bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
             <!-- Modal header -->
             <div class="flex items-center justify-between p-4 md:p-5 border-b border-gray-600 rounded-t">
@@ -150,7 +154,7 @@
                     <div id="productosContainer" class="space-y-3">
                         <!-- Encabezados -->
                         <div class="bg-gray-700 rounded-lg p-3 border border-gray-600">
-                            <div class="grid grid-cols-12 gap-2 items-center">
+                            <div class="grid grid-cols-13 gap-2 items-center">
                                 <div class="col-span-1 text-center">
                                     <span class="text-[10px] font-semibold text-gray-400">#</span>
                                 </div>
@@ -162,6 +166,9 @@
                                 </div>
                                 <div class="col-span-1">
                                     <span class="text-[10px] font-semibold text-gray-300">Características *</span>
+                                </div>
+                                <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Fecha Req.</span>
                                 </div>
                                 <div class="col-span-1">
                                     <span class="text-[10px] font-semibold text-gray-300">Req. Días *</span>
@@ -207,7 +214,7 @@
 <!-- Modal Vista Previa Solicitud -->
 <div id="modalPreviewSolicitud" tabindex="-1" aria-hidden="true"
      class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full">
-    <div class="relative p-4 w-full max-w-7xl max-h-full">
+    <div class="relative p-4 w-full max-w-8xl max-h-full">
         <div class="relative bg-gray-800 rounded-lg shadow-2xl border border-gray-700">
             <div class="flex items-center justify-between p-4 border-b border-gray-600">
                 <h3 class="text-lg font-semibold text-white">

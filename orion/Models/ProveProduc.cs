@@ -20,7 +20,7 @@ namespace orion.Models
         public string? Cuenta { get; set; }
         public string? Banco { get; set; }
         public string? NomCuenta { get; set; }
-        public int? LeadTime { get; set; }
+        public string? LeadTime { get; set; }
 
     }
 }

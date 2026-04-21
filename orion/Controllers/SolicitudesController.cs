@@ -136,11 +136,12 @@ namespace orion.Controllers
                         Cantidad = ParseDecimalFlexible(Request.Form[$"productos[{index}][cantidad]"]),
                         CodProveedor = Request.Form[$"productos[{index}][codProveedor]"],
                         FrequerimientoDias = string.IsNullOrEmpty(Request.Form[$"productos[{index}][frequerimiento_dias]"])
-                        ? null
-                        : int.Parse(Request.Form[$"productos[{index}][frequerimiento_dias]"]),
+                        ? ""
+                        : (Request.Form[$"productos[{index}][frequerimiento_dias]"]),
                         UltimoPrecio = ParseDecimalFlexible(Request.Form[$"productos[{index}][ultimoPrecio]"]),
                         FultimoPrecio = DateTime.TryParse(Request.Form[$"productos[{index}][fultimaCompra]"], out var fup) ? fup : null,
                         Estado = "Creado",
+                        Frequerimiento = DateTime.TryParse(Request.Form[$"productos[{index}][frequerimiento_item]"], out var fri) ? fri : solicitud.Frequerimiento,
                         Faprobado = null
                     };
 
@@ -225,6 +226,7 @@ namespace orion.Controllers
                         d.Estado,
                         d.IdSolicitud,
                         d.FrequerimientoDias,
+                        d.Frequerimiento,
                         NumeroOrden = _context.SolicitudPrecio
                         .Where(sp => sp.IdDetalleSolicitud == d.Id.ToString())
                         .Join(_context.OrdenCompra,
@@ -317,11 +319,12 @@ namespace orion.Controllers
                             Cantidad = ParseDecimalFlexible(Request.Form[$"productos[{index}][cantidad]"]),
                             CodProveedor = Request.Form[$"productos[{index}][codProveedor]"],
                             FrequerimientoDias = string.IsNullOrEmpty(Request.Form[$"productos[{index}][frequerimiento_dias]"])
-                            ? null
-                            : int.Parse(Request.Form[$"productos[{index}][frequerimiento_dias]"]),
+                            ? ""
+                            : (Request.Form[$"productos[{index}][frequerimiento_dias]"]),
                             UltimoPrecio = ParseDecimalFlexible(Request.Form[$"productos[{index}][ultimoPrecio]"]),
                             FultimoPrecio = DateTime.TryParse(Request.Form[$"productos[{index}][fultimaCompra]"], out var fup) ? fup : null,
                             Estado = "Creado",
+                            Frequerimiento = DateTime.TryParse(Request.Form[$"productos[{index}][frequerimiento_item]"], out var fri) ? fri : solicitud.Frequerimiento,
                             Faprobado = null
                         };
                         productos.Add(producto);
@@ -610,7 +613,7 @@ namespace orion.Controllers
                     })
                     .FirstOrDefaultAsync();
 
-                return Json(dato ?? new { ultimoPrecio = 0m, fultimaCompra = (DateTime?)null, leadTime = (int?)null });
+                return Json(dato ?? new { ultimoPrecio = 0m, fultimaCompra = (DateTime?)null, leadTime = (string?)null });
             }
             catch (Exception ex)
             {

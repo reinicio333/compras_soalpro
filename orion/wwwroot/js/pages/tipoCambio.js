@@ -103,12 +103,25 @@ function editarTipoCambio(id) {
 }
 
 function eliminarTipoCambio(id) {
-    eliminarRegistro(
-        '¿ESTÁ SEGURO DE ELIMINAR?',
-        'EL RANGO DE TIPO DE CAMBIO SE ELIMINARÁ',
-        'SÍ, ELIMINAR',
-        `/TipoCambio/Eliminar?id=${id}`
-    );
+    Swal.fire({
+        title: '¿ESTÁ SEGURO DE ELIMINAR?',
+        text: 'EL RANGO DE TIPO DE CAMBIO SE ELIMINARÁ',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'SÍ, ELIMINAR',
+        confirmButtonColor: '#d33',
+        background: '#1f2937',
+        color: '#ffffff'
+    }).then(result => {
+        if (result.isConfirmed) {
+            fetch(`/TipoCambio/Eliminar?id=${id}`)
+                .then(r => r.json())
+                .then(res => {
+                    mostrarAlerta(res.mensaje, res.tipo);
+                    if (res.tipo === 'success') cargarTiposCambio();
+                });
+        }
+    });
 }
 
 function cerrarModalTipoCambio() {

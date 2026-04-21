@@ -80,12 +80,12 @@ namespace orion.Servicios
                                 .Padding(3).Text(solicitud.Fecha.ToString("dd/MM/yyyy")).FontSize(9);
                         });
                         c.Item().PaddingTop(5);
-                        c.Item().Row(r =>
+                        /*c.Item().Row(r =>
                         {
                             r.ConstantItem(60).AlignBottom().Text("F. REQ.:").Bold().FontSize(9);
                             r.ConstantItem(100).Border(1).BorderColor(Colors.Black)
                                 .Padding(3).Text(solicitud.Frequerimiento?.ToString("dd/MM/yyyy") ?? "").FontSize(9);
-                        });
+                        });*/
                     });
 
                     row.ConstantItem(30); // Espacio
@@ -125,13 +125,14 @@ namespace orion.Servicios
                         columns.RelativeColumn(2.5f);     // Descripción
                         columns.RelativeColumn(2.5f);     // Características
                         columns.ConstantColumn(80);    // Proveedor
-                        columns.ConstantColumn(70);    // Unidad
-                        columns.ConstantColumn(60);    // Req. Días
-                        columns.ConstantColumn(60);    // Ult. Precio 
-                        columns.ConstantColumn(60);    // Ult. Compra
-                        columns.ConstantColumn(60);    // Cantidad
-                        columns.ConstantColumn(60);    // Estado
-                        columns.ConstantColumn(60);    // Fecha Aprobado
+                        columns.ConstantColumn(60);    // Unidad
+                        columns.ConstantColumn(50);    // Fecha Req.
+                        columns.ConstantColumn(50);    // Req. Días
+                        columns.ConstantColumn(50);    // Ult. Precio 
+                        columns.ConstantColumn(55);    // Ult. Compra
+                        columns.ConstantColumn(55);    // Cantidad
+                        columns.ConstantColumn(55);    // Estado
+                        columns.ConstantColumn(55);    // Fecha Aprobado
                     });
 
                     // Encabezados
@@ -142,6 +143,7 @@ namespace orion.Servicios
                         header.Cell().Element(HeaderStyle).Text("CARACTERISTICAS").Bold();
                         header.Cell().Element(HeaderStyle).Text("PROVEEDOR").Bold();
                         header.Cell().Element(HeaderStyle).Text("UNIDAD DE\nCOMPRA").Bold();
+                        header.Cell().Element(HeaderStyle).Text("FECHA\nREQ.").Bold();
                         header.Cell().Element(HeaderStyle).Text("REQ.\nDIAS").Bold();
                         header.Cell().Element(HeaderStyle).Text("ULT.\nPRECIO").Bold(); 
                         header.Cell().Element(HeaderStyle).Text("F. ULT.\nCOMPRA").Bold();
@@ -169,6 +171,7 @@ namespace orion.Servicios
                         table.Cell().Element(CellStyle).Text(detalle.Caracteristicas ?? "").FontSize(7);
                         table.Cell().Element(CellStyle).Text(detalle.Proveedor ?? "").FontSize(7);
                         table.Cell().Element(CellStyle).AlignCenter().Text(detalle.Unidad ?? "").FontSize(7);
+                        table.Cell().Element(CellStyle).AlignCenter().Text(detalle.Frequerimiento.HasValue ? detalle.Frequerimiento.Value.ToString("dd/MM/yyyy") : "").FontSize(7);
                         table.Cell().Element(CellStyle).AlignCenter().Text(detalle.FrequerimientoDias?.ToString() ?? "").FontSize(7);
                         table.Cell().Element(CellStyle).AlignRight().Text(detalle.UltimoPrecio > 0 ? detalle.UltimoPrecio.ToString("N2") : "").FontSize(7);
                         table.Cell().Element(CellStyle).AlignCenter().Text(detalle.FultimoPrecio.HasValue ? detalle.FultimoPrecio.Value.ToString("dd/MM/yyyy") : "").FontSize(7);
@@ -184,6 +187,7 @@ namespace orion.Servicios
                     int filasVacias = Math.Max(0, 6 - detalles.Count);
                     for (int i = 0; i < filasVacias; i++)
                     {
+                        table.Cell().Element(CellStyle).Text("");
                         table.Cell().Element(CellStyle).Text("");
                         table.Cell().Element(CellStyle).Text("");
                         table.Cell().Element(CellStyle).Text("");

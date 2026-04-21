@@ -33,7 +33,7 @@
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
-            => optionsBuilder.UseSqlServer("Data Source=192.168.1.1;Initial Catalog=orion;User=sa1;Password=1237890;TrustServerCertificate=true;");
+            => optionsBuilder.UseSqlServer("Data Source=192.168.1.1;Initial Catalog=orion_developer;User=sa1;Password=1237890;TrustServerCertificate=true;");
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -146,12 +146,16 @@
                 .IsUnicode(false)
                 .HasColumnName("cod_proveedor");
             entity.Property(e => e.FrequerimientoDias)
+                .HasMaxLength(250)
+                .IsUnicode(false)
                 .HasColumnName("frequerimiento_dias");
             entity.Property(e => e.Faprobado).HasColumnName("faprovado");
             entity.Property(e => e.UltimoPrecio)
                     .HasColumnType("decimal(20, 2)")
                     .HasColumnName("ultimo_precio");
             entity.Property(e => e.FultimoPrecio).HasColumnName("f_ultimo_precio");
+            entity.Property(e => e.Frequerimiento)
+                .HasColumnName("frequerimiento");
         });
 
         // Configuración para Proveedores y Productos

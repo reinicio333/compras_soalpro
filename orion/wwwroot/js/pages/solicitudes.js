@@ -150,7 +150,7 @@ function agregarProducto() {
     contadorProductos++;
     const productoHTML = `
     <div class="producto-item bg-gray-700 rounded-lg p-3 border border-gray-600" data-index="${contadorProductos}">
-        <div class="grid grid-cols-12 gap-2 items-center">
+        <div class="grid grid-cols-13 gap-2 items-center">
             <!-- Número -->
             <div class="col-span-1 text-center">
                 <span class="text-xs font-semibold text-green-400">
@@ -164,7 +164,7 @@ function agregarProducto() {
                         id="select_producto_${contadorProductos}"
                         required>
                 </select>
-                <!-- CAMBIADO: Ahora el código va en un hidden -->
+               
                 <input type="hidden"
                        name="productos[${contadorProductos}][codigo]"
                        id="codigo_${contadorProductos}">
@@ -193,6 +193,12 @@ function agregarProducto() {
                        name="productos[${contadorProductos}][caracteristicas]"
                        class="uppercase bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
                        placeholder="Características" >
+            </div>
+            <div class="col-span-1">
+                <input type="date"
+                       name="productos[${contadorProductos}][frequerimiento_item]"
+                       id="frequerimiento_item_${contadorProductos}"
+                       class="bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
             </div>
             <!-- Req. Días -->
             <input type="number"
@@ -236,7 +242,7 @@ function agregarProducto() {
                 <input type="number" step="0.01"
                        name="productos[${contadorProductos}][cantidad]"
                        class="bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
-                       placeholder="0.00" required>
+                       placeholder="0.00" min="0.01" required>
             </div>
 
             <!-- Botón eliminar -->
@@ -253,6 +259,8 @@ function agregarProducto() {
 
     productosContainer.insertAdjacentHTML('beforeend', productoHTML);
     initializeSelectizeForProduct(contadorProductos);
+    const fechaCabecera = document.getElementById('frequerimiento').value;
+    document.getElementById(`frequerimiento_item_${contadorProductos}`).value = fechaCabecera;
 }
 
 function initializeSelectizeForProduct(index) {
@@ -362,6 +370,7 @@ function initializeSelectizeForProduct(index) {
                             $(`#fultimaCompra_${index}`).val(data.fultimaCompra ? data.fultimaCompra.split('T')[0] : '');
                             $(`#fultimaCompra_display_${index}`).val(data.fultimaCompra ? new Date(data.fultimaCompra).toLocaleDateString('es-ES') : 'Sin datos');
                             $(`#frequerimiento_dias_${index}`).val(data.leadTime || '');
+
                         }
                     });
                 }
@@ -490,6 +499,7 @@ function initializeSelectizeForProductEdit(index, detalle) {
                             $(`#fultimaCompra_${index}`).val(data.fultimaCompra ? data.fultimaCompra.split('T')[0] : '');
                             $(`#fultimaCompra_display_${index}`).val(data.fultimaCompra ? new Date(data.fultimaCompra).toLocaleDateString('es-ES') : 'Sin datos');
                             $(`#frequerimiento_dias_${index}`).val(data.leadTime || '');
+                            $(`#frequerimiento_dias_${index}`).closest('div').find('input[readonly]').val(data.leadTime || '');
 
                         }
                     });
@@ -528,6 +538,7 @@ function initializeSelectizeForProductEdit(index, detalle) {
                         $(`#fultimaCompra_${index}`).val(precio.fultimaCompra ? precio.fultimaCompra.split('T')[0] : '');
                         $(`#fultimaCompra_display_${index}`).val(precio.fultimaCompra ? new Date(precio.fultimaCompra).toLocaleDateString('es-ES') : 'Sin datos');
                         $(`#frequerimiento_dias_${index}`).val(precio.leadTime || '');
+                        $(`#frequerimiento_dias_${index}`).closest('div').find('input[readonly]').val(precio.leadTime || '');
                     }
                 });
             }
@@ -608,6 +619,15 @@ frm.addEventListener("submit", function (e) {
         return;
     }
 
+    const cantidades = document.querySelectorAll('input[name*="[cantidad]"]');
+    for (const input of cantidades) {
+        const val = parseFloat(input.value);
+        if (isNaN(val) || val <= 0) {
+            alertaPersonalizada("warning", "LA CANTIDAD DEBE SER MAYOR A CERO");
+            input.focus();
+            return;
+        }
+    }
     const data = new FormData(frm);
 
     const dataMayusculas = new FormData();
@@ -739,7 +759,7 @@ function editarSolicitud(id) {
                 const productoHTML = `
                 <div class="producto-item bg-gray-700 rounded-lg p-3 border ${esPendiente ? 'border-orange-500' : esManual ? 'border-purple-600' : 'border-gray-600'}" data-index="${contadorProductos}" ${esManual ? 'data-manual="true"' : ''}>
                     ${esPendiente ? `<div class="mb-2 text-xs text-orange-400 font-semibold"><i class="fas fa-lock mr-1"></i>${detalle.estado} - Orden de Compra ${detalle.numeroOrden ? '#' + detalle.numeroOrden : ''}</div>` : ''}
-                    <div class="grid grid-cols-12 gap-2 items-center">
+                    <div class="grid grid-cols-13 gap-2 items-center">
 
                         <!-- # -->
                         <div class="col-span-1 text-center">
@@ -792,6 +812,15 @@ function editarSolicitud(id) {
                                    class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
                                    value="${detalle.caracteristicas || ''}"
                                    placeholder="Opcional"
+                                   ${esPendiente ? 'readonly' : ''}>
+                        </div>
+                        <!-- Fecha Requerimiento Item -->
+                        <div class="col-span-1 ${esPendiente ? disabledClass : ''}">
+                            <input type="date"
+                                   name="productos[${contadorProductos}][frequerimiento_item]"
+                                   id="frequerimiento_item_${contadorProductos}"
+                                   class="${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
+                                   value="${detalle.frequerimiento ? detalle.frequerimiento.split('T')[0] : (data.solicitud.frequerimiento ? data.solicitud.frequerimiento.split('T')[0] : '')}"
                                    ${esPendiente ? 'readonly' : ''}>
                         </div>
 
@@ -857,7 +886,8 @@ function editarSolicitud(id) {
                             <input type="number" step="0.01" name="productos[${contadorProductos}][cantidad]"
                                    class="${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
                                    value="${detalle.cantidad}"
-                                   ${esPendiente ? 'readonly' : ''} required>
+                                    min="0.01"
+                                    ${esPendiente ? 'readonly' : ''} required>
                         </div>
 
                         <!-- Eliminar -->
@@ -1068,7 +1098,7 @@ function agregarProductoManual() {
     contadorProductos++;
     const productoHTML = `
     <div class="producto-item bg-gray-700 rounded-lg p-3 border border-purple-600" data-index="${contadorProductos}" data-manual="true">
-        <div class="grid grid-cols-12 gap-2 items-center">
+        <div class="grid grid-cols-13 gap-2 items-center">
             <!-- Número -->
             <div class="col-span-1 text-center">
                 <span class="text-xs font-semibold text-purple-400">
@@ -1103,7 +1133,13 @@ function agregarProductoManual() {
                        class="uppercase bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2 placeholder-gray-400"
                        placeholder="Opcional">
             </div>
-
+            <!-- Fecha Requerimiento Item -->
+            <div class="col-span-1">
+                <input type="date"
+                       name="productos[${contadorProductos}][frequerimiento_item]"
+                       id="frequerimiento_item_${contadorProductos}"
+                       class="bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
+            </div>
             <!-- Req. Días — oculto, valor 0 -->
             <div class="col-span-1">
                 <input type="text"
@@ -1150,7 +1186,7 @@ function agregarProductoManual() {
                 <input type="number" step="0.01"
                        name="productos[${contadorProductos}][cantidad]"
                        class="bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2 placeholder-gray-400"
-                       placeholder="0.00" required>
+                       placeholder="0.00" min="0.01" required>
             </div>
 
             <!-- Botón eliminar -->
@@ -1165,6 +1201,8 @@ function agregarProductoManual() {
     </div>`;
 
     productosContainer.insertAdjacentHTML('beforeend', productoHTML);
+    const fechaCabecera = document.getElementById('frequerimiento').value;
+    document.getElementById(`frequerimiento_item_${contadorProductos}`).value = fechaCabecera;
 }
 
 document.getElementById('btnAgregarProductoManual').addEventListener('click', agregarProductoManual);

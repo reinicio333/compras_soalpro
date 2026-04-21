@@ -50,7 +50,7 @@ namespace orion.Servicios
             if (razon.Contains("CARSA"))
             {
                 logoFile = "images/carsa.png";
-                logoColor = "#24346c"; // azul oscuro océano
+                logoColor = "#24346c";
                 logoFondo = "#24346c";
                 logoLetra = "#ffffff";
 
@@ -66,7 +66,7 @@ namespace orion.Servicios
             else
             {
                 logoFile = "images/soalpro.png";
-                logoColor = "#ffcccc"; // rojo soalpro
+                logoColor = "#ffcccc";
                 logoFondo = "#e20d16";
                 logoLetra = "#000000";
 
@@ -241,7 +241,7 @@ namespace orion.Servicios
                         table.Cell().Element(CellStyle).AlignMiddle().Text(producto.Codigo ?? "").FontSize(7).FontFamily("Cambria").AlignCenter();
                         table.Cell().Element(CellStyle).AlignMiddle().AlignCenter().Text(producto.Nro ?? "").FontSize(7).FontFamily("Cambria");
                         table.Cell().Element(CellStyle).AlignMiddle().Text(producto.Descripcion ?? "").FontSize(7);
-                        table.Cell().Background("#ffff00").Element(CellStyle).AlignMiddle().AlignCenter().Text(producto.FechaEntrega ?? "").FontSize(7).FontFamily("Cambria");
+                        table.Cell().Element(CellStyle).AlignMiddle().AlignCenter().Text(producto.Frequerimiento.HasValue ? producto.Frequerimiento.Value.ToString("dd/MM/yyyy") : "").FontSize(7).FontFamily("Cambria");
                         table.Cell().Element(CellStyle).AlignMiddle().Text(producto.Caracteristicas ?? "").FontSize(7).FontFamily("Cambria").AlignCenter();
                         table.Cell().Element(CellStyle).AlignMiddle().AlignCenter().Text(producto.Unidad ?? "").FontSize(7).FontFamily("Cambria");
                         table.Cell().Element(CellStyle).AlignMiddle().AlignCenter().Text(producto.Cantidad.ToString("N2")).FontSize(7).FontFamily("Cambria");
@@ -557,7 +557,11 @@ namespace orion.Servicios
 
                         if (firmaRevisado != null)
                         {
-                            contenedor.Padding(4).Image(firmaRevisado, ImageScaling.FitArea);
+                            contenedor.Column(col =>
+                            {
+                                col.Item().AlignCenter().Height(40).Image(firmaRevisado, ImageScaling.FitArea);
+                                col.Item().Text(datos.RevisadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                            });
                         }
                         else
                         {
@@ -584,7 +588,11 @@ namespace orion.Servicios
 
                         if (firmaAutorizado != null)
                         {
-                            contenedor.Padding(4).Image(firmaAutorizado, ImageScaling.FitArea);
+                            contenedor.Stack(stack =>
+                            {
+                                stack.Item().AlignCenter().Height(40).Padding(1).Image(firmaAutorizado, ImageScaling.FitArea);
+                                stack.Item().Text(datos.AutorizadoPor ?? "").FontSize(8).FontFamily("Cambria");
+                            });
                         }
                         else
                         {

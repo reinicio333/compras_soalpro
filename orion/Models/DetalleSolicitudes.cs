@@ -26,9 +26,10 @@ namespace orion.Models
 
         public DateTime? Faprobado { get; set; }
         public string? CodProveedor { get; set; }
-        public int? FrequerimientoDias { get; set; }
+        public string? FrequerimientoDias { get; set; }
         public decimal UltimoPrecio { get; set; }
         public DateTime? FultimoPrecio { get; set; }
+        public DateTime? Frequerimiento { get; set; }
 
     }
 }
