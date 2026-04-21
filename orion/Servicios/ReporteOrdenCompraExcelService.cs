@@ -103,7 +103,7 @@ namespace orion.Servicios
             return stream.ToArray();
         }
 
-        public byte[] GenerarExcelReporteGeneral(List<ReporteGeneralOrdenDto> ordenes)
+        public byte[] GenerarExcelReporteGeneral(List<ReporteGeneralOrdenDetalleDto> ordenes)
         {
             IWorkbook workbook = new XSSFWorkbook();
             var sheet = workbook.CreateSheet("ReporteGeneral");
@@ -121,9 +121,15 @@ namespace orion.Servicios
                 "ID",
                 "Fecha",
                 "Id Solicitud Precio",
+                "Id Solicitud",
                 "Solicitudes Vinculadas",
                 "Referencias Solicitudes",
                 "Solicitantes Solicitudes",
+                "Proveedor Item",
+                "Nombre Item",
+                "Codigo Item",
+                "Cantidad Item",
+                "Precio Item",
                 "Referencia OC",
                 "Solicitante OC",
                 "Proveedor",
@@ -172,42 +178,48 @@ namespace orion.Servicios
                 row.CreateCell(0).SetCellValue(orden.Id);
                 row.CreateCell(1).SetCellValue(orden.Fecha?.ToString("dd/MM/yyyy") ?? "");
                 row.CreateCell(2).SetCellValue(orden.IdSolicitudPrecio?.ToString() ?? "");
-                row.CreateCell(3).SetCellValue(orden.SolicitudesVinculadas ?? "");
-                row.CreateCell(4).SetCellValue(orden.ReferenciasSolicitudesVinculadas ?? "");
-                row.CreateCell(5).SetCellValue(orden.SolicitantesSolicitudesVinculadas ?? "");
-                row.CreateCell(6).SetCellValue(orden.Referencia ?? "");
-                row.CreateCell(7).SetCellValue(orden.Solicitante ?? "");
-                row.CreateCell(8).SetCellValue(orden.Proveedor ?? "");
-                row.CreateCell(9).SetCellValue(orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
-                row.CreateCell(10).SetCellValue(orden.Estado ?? "Sin Estado");
-                row.CreateCell(11).SetCellValue(orden.IdEstado?.ToString() ?? "");
-                row.CreateCell(12).SetCellValue(orden.FechaEstado?.ToString("dd/MM/yyyy HH:mm") ?? "");
-                row.CreateCell(13).SetCellValue(orden.TipoCambio ?? "");
-                row.CreateCell(14).SetCellValue(orden.Observacion ?? "");
-                row.CreateCell(15).SetCellValue(orden.FormaPago ?? "");
-                row.CreateCell(16).SetCellValue(orden.MedioTransporte ?? "");
-                row.CreateCell(17).SetCellValue(orden.ResponsableRecepcion ?? "");
-                row.CreateCell(18).SetCellValue(orden.FechaEntrega?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(19).SetCellValue(orden.LugarEntrega ?? "");
-                row.CreateCell(20).SetCellValue(orden.FechaAnticipo?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(21).SetCellValue(orden.MontoAnticipo?.ToString() ?? "");
-                row.CreateCell(22).SetCellValue(orden.FechaPagoFinal?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(23).SetCellValue(orden.MontoPagoFinal?.ToString() ?? "");
-                row.CreateCell(24).SetCellValue(orden.Banco ?? "");
-                row.CreateCell(25).SetCellValue(orden.Cuenta ?? "");
-                row.CreateCell(26).SetCellValue(orden.NombreCuentaBancaria ?? "");
-                row.CreateCell(27).SetCellValue(orden.CodigoSwift ?? "");
-                row.CreateCell(28).SetCellValue(orden.Incoterm ?? "");
-                row.CreateCell(29).SetCellValue(orden.RazonSocial ?? "");
-                row.CreateCell(30).SetCellValue(orden.Nit ?? "");
-                row.CreateCell(31).SetCellValue(orden.Telefono ?? "");
-                row.CreateCell(32).SetCellValue(orden.NomContacto ?? "");
-                row.CreateCell(33).SetCellValue(orden.Aprobador ?? "");
-                row.CreateCell(34).SetCellValue(orden.IdAreaCorrespondencia?.ToString() ?? "");
-                row.CreateCell(35).SetCellValue(orden.CorrespondeAsc ?? "");
-                row.CreateCell(36).SetCellValue(orden.RecepcionTipo ?? "");
-                row.CreateCell(37).SetCellValue(orden.ObservacionRecepcion ?? "");
-                row.CreateCell(38).SetCellValue(orden.RutasArchivos ?? "");
+                row.CreateCell(3).SetCellValue(orden.IdSolicitud?.ToString() ?? "");
+                row.CreateCell(4).SetCellValue(orden.SolicitudesVinculadas ?? "");
+                row.CreateCell(5).SetCellValue(orden.ReferenciasSolicitudesVinculadas ?? "");
+                row.CreateCell(6).SetCellValue(orden.SolicitantesSolicitudesVinculadas ?? "");
+                row.CreateCell(7).SetCellValue(orden.ProveedorItem ?? "");
+                row.CreateCell(8).SetCellValue(orden.NombreItem ?? "");
+                row.CreateCell(9).SetCellValue(orden.CodigoItem ?? "");
+                row.CreateCell(10).SetCellValue(orden.CantidadItem?.ToString() ?? "");
+                row.CreateCell(11).SetCellValue(orden.PrecioItem?.ToString() ?? "");
+                row.CreateCell(12).SetCellValue(orden.Referencia ?? "");
+                row.CreateCell(13).SetCellValue(orden.Solicitante ?? "");
+                row.CreateCell(14).SetCellValue(orden.Proveedor ?? "");
+                row.CreateCell(15).SetCellValue(orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
+                row.CreateCell(16).SetCellValue(orden.Estado ?? "Sin Estado");
+                row.CreateCell(17).SetCellValue(orden.IdEstado?.ToString() ?? "");
+                row.CreateCell(18).SetCellValue(orden.FechaEstado?.ToString("dd/MM/yyyy HH:mm") ?? "");
+                row.CreateCell(19).SetCellValue(orden.TipoCambio ?? "");
+                row.CreateCell(20).SetCellValue(orden.Observacion ?? "");
+                row.CreateCell(21).SetCellValue(orden.FormaPago ?? "");
+                row.CreateCell(22).SetCellValue(orden.MedioTransporte ?? "");
+                row.CreateCell(23).SetCellValue(orden.ResponsableRecepcion ?? "");
+                row.CreateCell(24).SetCellValue(orden.FechaEntrega?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(25).SetCellValue(orden.LugarEntrega ?? "");
+                row.CreateCell(26).SetCellValue(orden.FechaAnticipo?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(27).SetCellValue(orden.MontoAnticipo?.ToString() ?? "");
+                row.CreateCell(28).SetCellValue(orden.FechaPagoFinal?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(29).SetCellValue(orden.MontoPagoFinal?.ToString() ?? "");
+                row.CreateCell(30).SetCellValue(orden.Banco ?? "");
+                row.CreateCell(31).SetCellValue(orden.Cuenta ?? "");
+                row.CreateCell(32).SetCellValue(orden.NombreCuentaBancaria ?? "");
+                row.CreateCell(33).SetCellValue(orden.CodigoSwift ?? "");
+                row.CreateCell(34).SetCellValue(orden.Incoterm ?? "");
+                row.CreateCell(35).SetCellValue(orden.RazonSocial ?? "");
+                row.CreateCell(36).SetCellValue(orden.Nit ?? "");
+                row.CreateCell(37).SetCellValue(orden.Telefono ?? "");
+                row.CreateCell(38).SetCellValue(orden.NomContacto ?? "");
+                row.CreateCell(39).SetCellValue(orden.Aprobador ?? "");
+                row.CreateCell(40).SetCellValue(orden.IdAreaCorrespondencia?.ToString() ?? "");
+                row.CreateCell(41).SetCellValue(orden.CorrespondeAsc ?? "");
+                row.CreateCell(42).SetCellValue(orden.RecepcionTipo ?? "");
+                row.CreateCell(43).SetCellValue(orden.ObservacionRecepcion ?? "");
+                row.CreateCell(44).SetCellValue(orden.RutasArchivos ?? "");
             }
 
             for (var i = 0; i < columnas.Length; i++)

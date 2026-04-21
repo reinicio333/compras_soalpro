@@ -1031,7 +1031,7 @@ namespace orion.Controllers
         {
             try
             {
-                var ordenes = await ObtenerOrdenesReporteGeneralAsync();
+                var ordenes = await ObtenerDetalleReporteGeneralExcelAsync();
                 var excelService = new ReporteOrdenCompraExcelService();
                 var excelBytes = excelService.GenerarExcelReporteGeneral(ordenes);
 
@@ -1044,6 +1044,145 @@ namespace orion.Controllers
             {
                 return Json(new { tipo = "error", mensaje = "Error al generar reporte general: " + ex.Message });
             }
+        }
+
+        private async Task<List<ReporteGeneralOrdenDetalleDto>> ObtenerDetalleReporteGeneralExcelAsync()
+        {
+            var ordenes = await ObtenerOrdenesReporteGeneralAsync();
+            var idsSolicitudPrecio = ordenes
+                .Where(o => o.IdSolicitudPrecio.HasValue)
+                .Select(o => o.IdSolicitudPrecio!.Value)
+                .Distinct()
+                .ToList();
+
+            var detalleItems = await (
+                from sp in _context.SolicitudPrecio
+                where sp.IdSolicitudPrecio.HasValue && idsSolicitudPrecio.Contains(sp.IdSolicitudPrecio.Value)
+                join ds in _context.DetalleSolicitudes on sp.IdDetalleSolicitud equals ds.Id.ToString()
+                join s in _context.Solicitudes on ds.IdSolicitud equals s.Id
+                select new
+                {
+                    IdSolicitudPrecio = sp.IdSolicitudPrecio.Value,
+                    IdSolicitud = s.Id,
+                    Proveedor = ds.Proveedor,
+                    NombreItem = ds.Descripcion,
+                    CodigoItem = ds.Codigo,
+                    Cantidad = sp.Cantidad ?? ds.Cantidad,
+                    Precio = sp.Precio
+                })
+                .ToListAsync();
+
+            var detallePorSolicitudPrecio = detalleItems
+                .GroupBy(x => x.IdSolicitudPrecio)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            var resultado = new List<ReporteGeneralOrdenDetalleDto>();
+
+            foreach (var orden in ordenes)
+            {
+                if (!orden.IdSolicitudPrecio.HasValue
+                    || !detallePorSolicitudPrecio.TryGetValue(orden.IdSolicitudPrecio.Value, out var items)
+                    || items.Count == 0)
+                {
+                    resultado.Add(new ReporteGeneralOrdenDetalleDto
+                    {
+                        Id = orden.Id,
+                        Fecha = orden.Fecha,
+                        IdSolicitudPrecio = orden.IdSolicitudPrecio,
+                        SolicitudesVinculadas = orden.SolicitudesVinculadas,
+                        ReferenciasSolicitudesVinculadas = orden.ReferenciasSolicitudesVinculadas,
+                        SolicitantesSolicitudesVinculadas = orden.SolicitantesSolicitudesVinculadas,
+                        Referencia = orden.Referencia,
+                        Solicitante = orden.Solicitante,
+                        Proveedor = orden.Proveedor,
+                        EsImportacion = orden.EsImportacion,
+                        Estado = orden.Estado,
+                        IdEstado = orden.IdEstado,
+                        FechaEstado = orden.FechaEstado,
+                        TipoCambio = orden.TipoCambio,
+                        Observacion = orden.Observacion,
+                        FormaPago = orden.FormaPago,
+                        MedioTransporte = orden.MedioTransporte,
+                        ResponsableRecepcion = orden.ResponsableRecepcion,
+                        FechaEntrega = orden.FechaEntrega,
+                        LugarEntrega = orden.LugarEntrega,
+                        FechaAnticipo = orden.FechaAnticipo,
+                        MontoAnticipo = orden.MontoAnticipo,
+                        FechaPagoFinal = orden.FechaPagoFinal,
+                        MontoPagoFinal = orden.MontoPagoFinal,
+                        Banco = orden.Banco,
+                        Cuenta = orden.Cuenta,
+                        NombreCuentaBancaria = orden.NombreCuentaBancaria,
+                        CodigoSwift = orden.CodigoSwift,
+                        Incoterm = orden.Incoterm,
+                        RazonSocial = orden.RazonSocial,
+                        Nit = orden.Nit,
+                        Telefono = orden.Telefono,
+                        NomContacto = orden.NomContacto,
+                        Aprobador = orden.Aprobador,
+                        IdAreaCorrespondencia = orden.IdAreaCorrespondencia,
+                        CorrespondeAsc = orden.CorrespondeAsc,
+                        RecepcionTipo = orden.RecepcionTipo,
+                        ObservacionRecepcion = orden.ObservacionRecepcion,
+                        RutasArchivos = orden.RutasArchivos
+                    });
+                    continue;
+                }
+
+                foreach (var item in items)
+                {
+                    resultado.Add(new ReporteGeneralOrdenDetalleDto
+                    {
+                        Id = orden.Id,
+                        Fecha = orden.Fecha,
+                        IdSolicitudPrecio = orden.IdSolicitudPrecio,
+                        SolicitudesVinculadas = orden.SolicitudesVinculadas,
+                        ReferenciasSolicitudesVinculadas = orden.ReferenciasSolicitudesVinculadas,
+                        SolicitantesSolicitudesVinculadas = orden.SolicitantesSolicitudesVinculadas,
+                        Referencia = orden.Referencia,
+                        Solicitante = orden.Solicitante,
+                        Proveedor = orden.Proveedor,
+                        EsImportacion = orden.EsImportacion,
+                        Estado = orden.Estado,
+                        IdEstado = orden.IdEstado,
+                        FechaEstado = orden.FechaEstado,
+                        TipoCambio = orden.TipoCambio,
+                        Observacion = orden.Observacion,
+                        FormaPago = orden.FormaPago,
+                        MedioTransporte = orden.MedioTransporte,
+                        ResponsableRecepcion = orden.ResponsableRecepcion,
+                        FechaEntrega = orden.FechaEntrega,
+                        LugarEntrega = orden.LugarEntrega,
+                        FechaAnticipo = orden.FechaAnticipo,
+                        MontoAnticipo = orden.MontoAnticipo,
+                        FechaPagoFinal = orden.FechaPagoFinal,
+                        MontoPagoFinal = orden.MontoPagoFinal,
+                        Banco = orden.Banco,
+                        Cuenta = orden.Cuenta,
+                        NombreCuentaBancaria = orden.NombreCuentaBancaria,
+                        CodigoSwift = orden.CodigoSwift,
+                        Incoterm = orden.Incoterm,
+                        RazonSocial = orden.RazonSocial,
+                        Nit = orden.Nit,
+                        Telefono = orden.Telefono,
+                        NomContacto = orden.NomContacto,
+                        Aprobador = orden.Aprobador,
+                        IdAreaCorrespondencia = orden.IdAreaCorrespondencia,
+                        CorrespondeAsc = orden.CorrespondeAsc,
+                        RecepcionTipo = orden.RecepcionTipo,
+                        ObservacionRecepcion = orden.ObservacionRecepcion,
+                        RutasArchivos = orden.RutasArchivos,
+                        IdSolicitud = item.IdSolicitud,
+                        ProveedorItem = item.Proveedor,
+                        NombreItem = item.NombreItem,
+                        CodigoItem = item.CodigoItem,
+                        CantidadItem = item.Cantidad,
+                        PrecioItem = item.Precio
+                    });
+                }
+            }
+
+            return resultado;
         }
 
         [HttpPost]
@@ -1895,6 +2034,16 @@ namespace orion.Controllers
         public string? SolicitudesVinculadas { get; set; }
         public string? ReferenciasSolicitudesVinculadas { get; set; }
         public string? SolicitantesSolicitudesVinculadas { get; set; }
+    }
+
+    public class ReporteGeneralOrdenDetalleDto : ReporteGeneralOrdenDto
+    {
+        public int? IdSolicitud { get; set; }
+        public string? ProveedorItem { get; set; }
+        public string? NombreItem { get; set; }
+        public string? CodigoItem { get; set; }
+        public decimal? CantidadItem { get; set; }
+        public decimal? PrecioItem { get; set; }
     }
 
     #endregion
