@@ -42,122 +42,7 @@ namespace orion.Controllers
         {
             try
             {
-                var nombreUsuario = User.Identity.Name;
-                var usuarioActual = await _context.Usuarios
-                    .FirstOrDefaultAsync(u => u.Nombre == nombreUsuario);
-
-                IQueryable<OrdenCompra> query = _context.OrdenCompra
-                    .Include(o => o.Estado)
-                    .Include(o => o.SolicitudPrecio);
-
-                if (usuarioActual?.IdTipo == "ADMINISTRADOR" || usuarioActual?.IdTipo == "COMPRAS")
-                {
-                    // Ven todas las ordenes, sin filtro
-                }
-                else if (usuarioActual?.IdTipo == "ALMACEN")
-                {
-                    query = query.Where(o => o.IdEstadoSolicitud == 8 || o.IdEstadoSolicitud == 9 || o.IdEstadoSolicitud == 10);
-                }
-                else if (usuarioActual?.IdTipo == "GERENCIA")
-                {
-                    // GERENCIA: ve solo ordenes en Pre autorización (estado 2) asignadas al aprobador actual
-                    var idGerenteActual = usuarioActual.Id.ToString();
-                    query = query.Where(o => o.IdEstadoSolicitud == 2
-                        && (o.Aprobador == idGerenteActual || o.Aprobador == nombreUsuario));
-                }
-                else if (usuarioActual?.IdTipo == "PLANTA")
-                {
-                    // Solo ven órdenes de su área
-                    var usuariosDelArea = await _context.Usuarios
-                        .Where(u => u.Area == usuarioActual.Area)
-                        .Select(u => u.Nombre)
-                        .ToListAsync();
-
-                    var idSolicitudesDelArea = await _context.Solicitudes
-                        .Where(s => usuariosDelArea.Contains(s.Solicitante))
-                        .Select(s => s.Id)
-                        .ToListAsync();
-
-                    var idDetalleSolicitudesDelArea = await _context.DetalleSolicitudes
-                        .Where(d => idSolicitudesDelArea.Contains(d.IdSolicitud))
-                        .Select(d => d.Id.ToString())
-                        .ToListAsync();
-
-                    var idSolicitudPrecioDelAreaSinStock = await _context.SolicitudPrecio
-                        .Where(sp => idDetalleSolicitudesDelArea.Contains(sp.IdDetalleSolicitud)
-                            && sp.EsStock != true)
-                        .Select(sp => sp.IdSolicitudPrecio)
-                        .Distinct()
-                        .ToListAsync();
-
-                    query = query.Where(o => idSolicitudPrecioDelAreaSinStock.Contains(o.IdSolicitudPrecio));
-                }
-                else
-                {
-                    // COMPRAS u otros: solo ven las de su área
-                    if (string.IsNullOrEmpty(usuarioActual?.Area))
-                    {
-                        query = query.Where(o => o.Solicitante == nombreUsuario);
-                    }
-                    else
-                    {
-                        var usuariosDelArea = await _context.Usuarios
-                            .Where(u => u.Area == usuarioActual.Area)
-                            .Select(u => u.Nombre)
-                            .ToListAsync();
-
-                        query = query.Where(o => usuariosDelArea.Contains(o.Solicitante));
-                    }
-                }
-
-                var ordenes = await query
-                    .OrderByDescending(o => o.Id)
-                    .Select(o => new
-                    {
-                        o.Id,
-                        Fecha = o.Fecha,
-                        o.Referencia,
-                        o.Solicitante,
-                        Estado = o.Estado != null ? o.Estado.Estado : "Sin Estado",
-                        o.EsImportacion,
-                        o.RecepcionTipo,
-                        o.ObservacionRecepcion,
-                        IdEstado = o.IdEstadoSolicitud,
-                        FechaEstado = _context.HistorialEstadoOrden
-                            .Where(h => h.IdOrden == o.Id)
-                            .OrderByDescending(h => h.FechaCambio)
-                            .Select(h => h.FechaCambio)
-                            .FirstOrDefault(),
-                        TodosEnStock = _context.SolicitudPrecio
-                            .Any(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
-                            && _context.SolicitudPrecio
-                                .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
-                                .All(sp => sp.EsStock == true),
-                        Proveedor = _context.SolicitudPrecio
-                            .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
-                            .Join(_context.DetalleSolicitudes,
-                                sp => sp.IdDetalleSolicitud,
-                                ds => ds.Id.ToString(),
-                                (sp, ds) => ds.Proveedor)
-                            .FirstOrDefault()
-                    })
-                    .ToListAsync();
-
-                var ordenesFiltradas = ordenes
-                    .Where(o => !o.TodosEnStock)
-                    .Select(o => new
-                    {
-                        o.Id,
-                        o.Fecha,
-                        o.Referencia,
-                        o.Solicitante,
-                        o.Estado,
-                        o.EsImportacion,
-                        o.IdEstado,
-                        o.FechaEstado,
-                        o.Proveedor
-                    });
-
+                var ordenesFiltradas = await ObtenerOrdenesReporteGeneralAsync();
                 return Json(ordenesFiltradas);
             }
             catch (Exception ex)
@@ -1113,6 +998,55 @@ namespace orion.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> GenerarExcel([FromBody] GenerarPdfDto datos)
+        {
+            try
+            {
+                var orden = await _context.OrdenCompra
+                    .Include(o => o.Estado)
+                    .FirstOrDefaultAsync(o => o.Id == datos.IdOrden);
+
+                if (orden == null)
+                {
+                    return NotFound();
+                }
+
+                var ordenDto = await ConvertirOrdenADto(orden);
+                var excelService = new ReporteOrdenCompraExcelService();
+                var excelBytes = excelService.GenerarExcelOrdenCompra(ordenDto);
+
+                return File(
+                    excelBytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"OC_{orden.Id}_{DateTime.Now:ddMMyyyy}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error al generar Excel: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GenerarReporteGeneralExcel()
+        {
+            try
+            {
+                var ordenes = await ObtenerOrdenesReporteGeneralAsync();
+                var excelService = new ReporteOrdenCompraExcelService();
+                var excelBytes = excelService.GenerarExcelReporteGeneral(ordenes);
+
+                return File(
+                    excelBytes,
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    $"REPORTE_GENERAL_ORDENES_{DateTime.Now:ddMMyyyy}.xlsx");
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error al generar reporte general: " + ex.Message });
+            }
+        }
+
+        [HttpPost]
         public async Task<IActionResult> GenerarPdfVistaPrevia([FromBody] GenerarPdfDto datos)
         {
             try
@@ -1576,6 +1510,225 @@ namespace orion.Controllers
             return usuario?.Id.ToString();
         }
 
+        private async Task<List<ReporteGeneralOrdenDto>> ObtenerOrdenesReporteGeneralAsync()
+        {
+            var nombreUsuario = User.Identity.Name;
+            var usuarioActual = await _context.Usuarios
+                .FirstOrDefaultAsync(u => u.Nombre == nombreUsuario);
+
+            IQueryable<OrdenCompra> query = _context.OrdenCompra
+                .Include(o => o.Estado)
+                .Include(o => o.SolicitudPrecio);
+
+            if (usuarioActual?.IdTipo == "ADMINISTRADOR" || usuarioActual?.IdTipo == "COMPRAS")
+            {
+                // sin filtro
+            }
+            else if (usuarioActual?.IdTipo == "ALMACEN")
+            {
+                query = query.Where(o => o.IdEstadoSolicitud == 8 || o.IdEstadoSolicitud == 9 || o.IdEstadoSolicitud == 10);
+            }
+            else if (usuarioActual?.IdTipo == "GERENCIA")
+            {
+                var idGerenteActual = usuarioActual.Id.ToString();
+                query = query.Where(o => o.IdEstadoSolicitud == 2
+                    && (o.Aprobador == idGerenteActual || o.Aprobador == nombreUsuario));
+            }
+            else if (usuarioActual?.IdTipo == "PLANTA")
+            {
+                var usuariosDelArea = await _context.Usuarios
+                    .Where(u => u.Area == usuarioActual.Area)
+                    .Select(u => u.Nombre)
+                    .ToListAsync();
+
+                var idSolicitudesDelArea = await _context.Solicitudes
+                    .Where(s => usuariosDelArea.Contains(s.Solicitante))
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                var idDetalleSolicitudesDelArea = await _context.DetalleSolicitudes
+                    .Where(d => idSolicitudesDelArea.Contains(d.IdSolicitud))
+                    .Select(d => d.Id.ToString())
+                    .ToListAsync();
+
+                var idSolicitudPrecioDelAreaSinStock = await _context.SolicitudPrecio
+                    .Where(sp => idDetalleSolicitudesDelArea.Contains(sp.IdDetalleSolicitud) && sp.EsStock != true)
+                    .Select(sp => sp.IdSolicitudPrecio)
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(o => idSolicitudPrecioDelAreaSinStock.Contains(o.IdSolicitudPrecio));
+            }
+            else
+            {
+                if (string.IsNullOrEmpty(usuarioActual?.Area))
+                {
+                    query = query.Where(o => o.Solicitante == nombreUsuario);
+                }
+                else
+                {
+                    var usuariosDelArea = await _context.Usuarios
+                        .Where(u => u.Area == usuarioActual.Area)
+                        .Select(u => u.Nombre)
+                        .ToListAsync();
+
+                    query = query.Where(o => usuariosDelArea.Contains(o.Solicitante));
+                }
+            }
+
+            var ordenes = await query
+                .OrderByDescending(o => o.Id)
+                .Select(o => new
+                {
+                    o.Id,
+                    o.Fecha,
+                    o.IdSolicitudPrecio,
+                    o.Referencia,
+                    o.Solicitante,
+                    Estado = o.Estado != null ? o.Estado.Estado : "Sin Estado",
+                    o.EsImportacion,
+                    IdEstado = o.IdEstadoSolicitud,
+                    o.TipoCambio,
+                    o.Observacion,
+                    o.FormaPago,
+                    o.MedioTransporte,
+                    o.ResponsableRecepcion,
+                    o.FechaEntrega,
+                    o.LugarEntrega,
+                    o.FechaAnticipo,
+                    o.MontoAnticipo,
+                    o.FechaPagoFinal,
+                    o.MontoPagoFinal,
+                    o.Banco,
+                    o.Cuenta,
+                    o.NombreCuentaBancaria,
+                    o.CodigoSwift,
+                    o.Incoterm,
+                    o.RazonSocial,
+                    o.Nit,
+                    o.Telefono,
+                    o.NomContacto,
+                    o.Aprobador,
+                    o.IdAreaCorrespondencia,
+                    o.CorrespondeAsc,
+                    o.RutasArchivos,
+                    o.RecepcionTipo,
+                    o.ObservacionRecepcion,
+                    FechaEstado = _context.HistorialEstadoOrden
+                        .Where(h => h.IdOrden == o.Id)
+                        .OrderByDescending(h => h.FechaCambio)
+                        .Select(h => h.FechaCambio)
+                        .FirstOrDefault(),
+                    TodosEnStock = _context.SolicitudPrecio
+                        .Any(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                        && _context.SolicitudPrecio
+                            .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                            .All(sp => sp.EsStock == true),
+                    Proveedor = _context.SolicitudPrecio
+                        .Where(sp => sp.IdSolicitudPrecio == o.IdSolicitudPrecio)
+                        .Join(_context.DetalleSolicitudes,
+                            sp => sp.IdDetalleSolicitud,
+                            ds => ds.Id.ToString(),
+                            (sp, ds) => ds.Proveedor)
+                        .FirstOrDefault()
+                })
+                .ToListAsync();
+
+            var ordenesFiltradas = ordenes
+                .Where(o => !o.TodosEnStock)
+                .Select(o => new ReporteGeneralOrdenDto
+                {
+                    Id = o.Id,
+                    Fecha = o.Fecha,
+                    IdSolicitudPrecio = o.IdSolicitudPrecio,
+                    Referencia = o.Referencia,
+                    Solicitante = o.Solicitante,
+                    Estado = o.Estado,
+                    EsImportacion = o.EsImportacion ?? false,
+                    IdEstado = o.IdEstado,
+                    FechaEstado = o.FechaEstado,
+                    Proveedor = o.Proveedor ?? "",
+                    TipoCambio = o.TipoCambio,
+                    Observacion = o.Observacion,
+                    FormaPago = o.FormaPago,
+                    MedioTransporte = o.MedioTransporte,
+                    ResponsableRecepcion = o.ResponsableRecepcion,
+                    FechaEntrega = o.FechaEntrega,
+                    LugarEntrega = o.LugarEntrega,
+                    FechaAnticipo = o.FechaAnticipo,
+                    MontoAnticipo = o.MontoAnticipo,
+                    FechaPagoFinal = o.FechaPagoFinal,
+                    MontoPagoFinal = o.MontoPagoFinal,
+                    Banco = o.Banco,
+                    Cuenta = o.Cuenta,
+                    NombreCuentaBancaria = o.NombreCuentaBancaria,
+                    CodigoSwift = o.CodigoSwift,
+                    Incoterm = o.Incoterm,
+                    RazonSocial = o.RazonSocial,
+                    Nit = o.Nit,
+                    Telefono = o.Telefono,
+                    NomContacto = o.NomContacto,
+                    Aprobador = o.Aprobador,
+                    IdAreaCorrespondencia = o.IdAreaCorrespondencia,
+                    CorrespondeAsc = o.CorrespondeAsc,
+                    RutasArchivos = o.RutasArchivos,
+                    RecepcionTipo = o.RecepcionTipo,
+                    ObservacionRecepcion = o.ObservacionRecepcion
+                })
+                .ToList();
+
+            var idsSolicitudPrecio = ordenesFiltradas
+                .Where(o => o.IdSolicitudPrecio.HasValue)
+                .Select(o => o.IdSolicitudPrecio!.Value)
+                .Distinct()
+                .ToList();
+
+            var solicitudesVinculadas = await (
+                from sp in _context.SolicitudPrecio
+                where sp.IdSolicitudPrecio.HasValue && idsSolicitudPrecio.Contains(sp.IdSolicitudPrecio.Value)
+                join ds in _context.DetalleSolicitudes on sp.IdDetalleSolicitud equals ds.Id.ToString()
+                join s in _context.Solicitudes on ds.IdSolicitud equals s.Id
+                select new
+                {
+                    IdSolicitudPrecio = sp.IdSolicitudPrecio.Value,
+                    IdSolicitud = s.Id,
+                    ReferenciaSolicitud = s.Referencia,
+                    SolicitanteSolicitud = s.Solicitante
+                })
+                .Distinct()
+                .ToListAsync();
+
+            var solicitudesPorOrden = solicitudesVinculadas
+                .GroupBy(x => x.IdSolicitudPrecio)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new
+                    {
+                        Ids = string.Join(", ", g.Select(x => x.IdSolicitud).Distinct().OrderBy(x => x)),
+                        Referencias = string.Join(", ", g
+                            .Where(x => !string.IsNullOrWhiteSpace(x.ReferenciaSolicitud))
+                            .Select(x => x.ReferenciaSolicitud)
+                            .Distinct()),
+                        Solicitantes = string.Join(", ", g
+                            .Where(x => !string.IsNullOrWhiteSpace(x.SolicitanteSolicitud))
+                            .Select(x => x.SolicitanteSolicitud)
+                            .Distinct())
+                    });
+
+            foreach (var orden in ordenesFiltradas)
+            {
+                if (orden.IdSolicitudPrecio.HasValue
+                    && solicitudesPorOrden.TryGetValue(orden.IdSolicitudPrecio.Value, out var detalleSolicitud))
+                {
+                    orden.SolicitudesVinculadas = detalleSolicitud.Ids;
+                    orden.ReferenciasSolicitudesVinculadas = detalleSolicitud.Referencias;
+                    orden.SolicitantesSolicitudesVinculadas = detalleSolicitud.Solicitantes;
+                }
+            }
+
+            return ordenesFiltradas;
+        }
+
         private static DateTime ParseFechaOrden(string? fecha)
         {
             if (DateTime.TryParseExact(fecha, "dd/MM/yyyy HH:mm", null, System.Globalization.DateTimeStyles.None, out var fechaParseada))
@@ -1699,6 +1852,49 @@ namespace orion.Controllers
     public class GenerarPdfDto
     {
         public int IdOrden { get; set; }
+    }
+
+    public class ReporteGeneralOrdenDto
+    {
+        public int Id { get; set; }
+        public DateTime? Fecha { get; set; }
+        public int? IdSolicitudPrecio { get; set; }
+        public string Referencia { get; set; }
+        public string Solicitante { get; set; }
+        public string? TipoCambio { get; set; }
+        public string Estado { get; set; }
+        public bool EsImportacion { get; set; }
+        public int? IdEstado { get; set; }
+        public DateTime? FechaEstado { get; set; }
+        public string Proveedor { get; set; }
+        public string? Observacion { get; set; }
+        public string? FormaPago { get; set; }
+        public string? MedioTransporte { get; set; }
+        public string? ResponsableRecepcion { get; set; }
+        public DateTime? FechaEntrega { get; set; }
+        public string? LugarEntrega { get; set; }
+        public DateTime? FechaAnticipo { get; set; }
+        public decimal? MontoAnticipo { get; set; }
+        public DateTime? FechaPagoFinal { get; set; }
+        public decimal? MontoPagoFinal { get; set; }
+        public string? Banco { get; set; }
+        public string? Cuenta { get; set; }
+        public string? NombreCuentaBancaria { get; set; }
+        public string? CodigoSwift { get; set; }
+        public string? Incoterm { get; set; }
+        public string? RazonSocial { get; set; }
+        public string? Nit { get; set; }
+        public string? Telefono { get; set; }
+        public string? NomContacto { get; set; }
+        public string? Aprobador { get; set; }
+        public int? IdAreaCorrespondencia { get; set; }
+        public string? CorrespondeAsc { get; set; }
+        public string? RutasArchivos { get; set; }
+        public string? RecepcionTipo { get; set; }
+        public string? ObservacionRecepcion { get; set; }
+        public string? SolicitudesVinculadas { get; set; }
+        public string? ReferenciasSolicitudesVinculadas { get; set; }
+        public string? SolicitantesSolicitudesVinculadas { get; set; }
     }
 
     #endregion
