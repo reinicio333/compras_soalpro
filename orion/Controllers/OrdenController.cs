@@ -718,6 +718,7 @@ namespace orion.Controllers
                 var idSolicitudPrecioActual = orden.IdSolicitudPrecio;
 
                 var preciosAntiguos = await _context.SolicitudPrecio
+                    .AsNoTracking()
                     .Where(sp => sp.IdSolicitudPrecio == idSolicitudPrecioActual)
                     .ToListAsync();
 
@@ -738,7 +739,8 @@ namespace orion.Controllers
                     }
                 }
 
-                _context.SolicitudPrecio.RemoveRange(preciosAntiguos);
+                await _context.Database.ExecuteSqlInterpolatedAsync(
+                    $"DELETE FROM solicitud_precio WHERE id_solicitud_precio = {idSolicitudPrecioActual}");
 
                 foreach (var producto in productosValidos)
                 {
