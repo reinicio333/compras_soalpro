@@ -1582,11 +1582,38 @@ namespace orion.Controllers
                 {
                     o.Id,
                     o.Fecha,
+                    o.IdSolicitudPrecio,
                     o.Referencia,
                     o.Solicitante,
                     Estado = o.Estado != null ? o.Estado.Estado : "Sin Estado",
                     o.EsImportacion,
                     IdEstado = o.IdEstadoSolicitud,
+                    o.TipoCambio,
+                    o.Observacion,
+                    o.FormaPago,
+                    o.MedioTransporte,
+                    o.ResponsableRecepcion,
+                    o.FechaEntrega,
+                    o.LugarEntrega,
+                    o.FechaAnticipo,
+                    o.MontoAnticipo,
+                    o.FechaPagoFinal,
+                    o.MontoPagoFinal,
+                    o.Banco,
+                    o.Cuenta,
+                    o.NombreCuentaBancaria,
+                    o.CodigoSwift,
+                    o.Incoterm,
+                    o.RazonSocial,
+                    o.Nit,
+                    o.Telefono,
+                    o.NomContacto,
+                    o.Aprobador,
+                    o.IdAreaCorrespondencia,
+                    o.CorrespondeAsc,
+                    o.RutasArchivos,
+                    o.RecepcionTipo,
+                    o.ObservacionRecepcion,
                     FechaEstado = _context.HistorialEstadoOrden
                         .Where(h => h.IdOrden == o.Id)
                         .OrderByDescending(h => h.FechaCambio)
@@ -1607,21 +1634,99 @@ namespace orion.Controllers
                 })
                 .ToListAsync();
 
-            return ordenes
+            var ordenesFiltradas = ordenes
                 .Where(o => !o.TodosEnStock)
                 .Select(o => new ReporteGeneralOrdenDto
                 {
                     Id = o.Id,
                     Fecha = o.Fecha,
+                    IdSolicitudPrecio = o.IdSolicitudPrecio,
                     Referencia = o.Referencia,
                     Solicitante = o.Solicitante,
                     Estado = o.Estado,
                     EsImportacion = o.EsImportacion ?? false,
                     IdEstado = o.IdEstado,
                     FechaEstado = o.FechaEstado,
-                    Proveedor = o.Proveedor ?? ""
+                    Proveedor = o.Proveedor ?? "",
+                    TipoCambio = o.TipoCambio,
+                    Observacion = o.Observacion,
+                    FormaPago = o.FormaPago,
+                    MedioTransporte = o.MedioTransporte,
+                    ResponsableRecepcion = o.ResponsableRecepcion,
+                    FechaEntrega = o.FechaEntrega,
+                    LugarEntrega = o.LugarEntrega,
+                    FechaAnticipo = o.FechaAnticipo,
+                    MontoAnticipo = o.MontoAnticipo,
+                    FechaPagoFinal = o.FechaPagoFinal,
+                    MontoPagoFinal = o.MontoPagoFinal,
+                    Banco = o.Banco,
+                    Cuenta = o.Cuenta,
+                    NombreCuentaBancaria = o.NombreCuentaBancaria,
+                    CodigoSwift = o.CodigoSwift,
+                    Incoterm = o.Incoterm,
+                    RazonSocial = o.RazonSocial,
+                    Nit = o.Nit,
+                    Telefono = o.Telefono,
+                    NomContacto = o.NomContacto,
+                    Aprobador = o.Aprobador,
+                    IdAreaCorrespondencia = o.IdAreaCorrespondencia,
+                    CorrespondeAsc = o.CorrespondeAsc,
+                    RutasArchivos = o.RutasArchivos,
+                    RecepcionTipo = o.RecepcionTipo,
+                    ObservacionRecepcion = o.ObservacionRecepcion
                 })
                 .ToList();
+
+            var idsSolicitudPrecio = ordenesFiltradas
+                .Where(o => o.IdSolicitudPrecio.HasValue)
+                .Select(o => o.IdSolicitudPrecio!.Value)
+                .Distinct()
+                .ToList();
+
+            var solicitudesVinculadas = await (
+                from sp in _context.SolicitudPrecio
+                where sp.IdSolicitudPrecio.HasValue && idsSolicitudPrecio.Contains(sp.IdSolicitudPrecio.Value)
+                join ds in _context.DetalleSolicitudes on sp.IdDetalleSolicitud equals ds.Id.ToString()
+                join s in _context.Solicitudes on ds.IdSolicitud equals s.Id
+                select new
+                {
+                    IdSolicitudPrecio = sp.IdSolicitudPrecio.Value,
+                    IdSolicitud = s.Id,
+                    ReferenciaSolicitud = s.Referencia,
+                    SolicitanteSolicitud = s.Solicitante
+                })
+                .Distinct()
+                .ToListAsync();
+
+            var solicitudesPorOrden = solicitudesVinculadas
+                .GroupBy(x => x.IdSolicitudPrecio)
+                .ToDictionary(
+                    g => g.Key,
+                    g => new
+                    {
+                        Ids = string.Join(", ", g.Select(x => x.IdSolicitud).Distinct().OrderBy(x => x)),
+                        Referencias = string.Join(", ", g
+                            .Where(x => !string.IsNullOrWhiteSpace(x.ReferenciaSolicitud))
+                            .Select(x => x.ReferenciaSolicitud)
+                            .Distinct()),
+                        Solicitantes = string.Join(", ", g
+                            .Where(x => !string.IsNullOrWhiteSpace(x.SolicitanteSolicitud))
+                            .Select(x => x.SolicitanteSolicitud)
+                            .Distinct())
+                    });
+
+            foreach (var orden in ordenesFiltradas)
+            {
+                if (orden.IdSolicitudPrecio.HasValue
+                    && solicitudesPorOrden.TryGetValue(orden.IdSolicitudPrecio.Value, out var detalleSolicitud))
+                {
+                    orden.SolicitudesVinculadas = detalleSolicitud.Ids;
+                    orden.ReferenciasSolicitudesVinculadas = detalleSolicitud.Referencias;
+                    orden.SolicitantesSolicitudesVinculadas = detalleSolicitud.Solicitantes;
+                }
+            }
+
+            return ordenesFiltradas;
         }
 
         private static DateTime ParseFechaOrden(string? fecha)
@@ -1753,13 +1858,43 @@ namespace orion.Controllers
     {
         public int Id { get; set; }
         public DateTime? Fecha { get; set; }
+        public int? IdSolicitudPrecio { get; set; }
         public string Referencia { get; set; }
         public string Solicitante { get; set; }
+        public string? TipoCambio { get; set; }
         public string Estado { get; set; }
         public bool EsImportacion { get; set; }
         public int? IdEstado { get; set; }
         public DateTime? FechaEstado { get; set; }
         public string Proveedor { get; set; }
+        public string? Observacion { get; set; }
+        public string? FormaPago { get; set; }
+        public string? MedioTransporte { get; set; }
+        public string? ResponsableRecepcion { get; set; }
+        public DateTime? FechaEntrega { get; set; }
+        public string? LugarEntrega { get; set; }
+        public DateTime? FechaAnticipo { get; set; }
+        public decimal? MontoAnticipo { get; set; }
+        public DateTime? FechaPagoFinal { get; set; }
+        public decimal? MontoPagoFinal { get; set; }
+        public string? Banco { get; set; }
+        public string? Cuenta { get; set; }
+        public string? NombreCuentaBancaria { get; set; }
+        public string? CodigoSwift { get; set; }
+        public string? Incoterm { get; set; }
+        public string? RazonSocial { get; set; }
+        public string? Nit { get; set; }
+        public string? Telefono { get; set; }
+        public string? NomContacto { get; set; }
+        public string? Aprobador { get; set; }
+        public int? IdAreaCorrespondencia { get; set; }
+        public string? CorrespondeAsc { get; set; }
+        public string? RutasArchivos { get; set; }
+        public string? RecepcionTipo { get; set; }
+        public string? ObservacionRecepcion { get; set; }
+        public string? SolicitudesVinculadas { get; set; }
+        public string? ReferenciasSolicitudesVinculadas { get; set; }
+        public string? SolicitantesSolicitudesVinculadas { get; set; }
     }
 
     #endregion

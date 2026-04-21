@@ -116,7 +116,48 @@ namespace orion.Servicios
             estiloHeader.FillPattern = FillPattern.SolidForeground;
 
             var rowHeader = sheet.CreateRow(0);
-            string[] columnas = { "ID", "Fecha", "Referencia", "Solicitante", "Proveedor", "Tipo", "Estado", "Fecha Estado" };
+            string[] columnas =
+            {
+                "ID",
+                "Fecha",
+                "Id Solicitud Precio",
+                "Solicitudes Vinculadas",
+                "Referencias Solicitudes",
+                "Solicitantes Solicitudes",
+                "Referencia OC",
+                "Solicitante OC",
+                "Proveedor",
+                "Tipo",
+                "Estado",
+                "Id Estado",
+                "Fecha Estado",
+                "Tipo Cambio",
+                "Observacion",
+                "Forma Pago",
+                "Medio Transporte",
+                "Responsable Recepcion",
+                "Fecha Entrega",
+                "Lugar Entrega",
+                "Fecha Anticipo",
+                "Monto Anticipo",
+                "Fecha Pago Final",
+                "Monto Pago Final",
+                "Banco",
+                "Cuenta",
+                "Nombre Cuenta Bancaria",
+                "Codigo Swift",
+                "Incoterm",
+                "Razon Social",
+                "NIT",
+                "Telefono",
+                "Nombre Contacto",
+                "Aprobador",
+                "Id Area Correspondencia",
+                "Corresponde ASC",
+                "Recepcion Tipo",
+                "Observacion Recepcion",
+                "Adjuntos (JSON)"
+            };
             for (var i = 0; i < columnas.Length; i++)
             {
                 var cell = rowHeader.CreateCell(i);
@@ -130,12 +171,43 @@ namespace orion.Servicios
                 var row = sheet.CreateRow(rowIndex++);
                 row.CreateCell(0).SetCellValue(orden.Id);
                 row.CreateCell(1).SetCellValue(orden.Fecha?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(2).SetCellValue(orden.Referencia ?? "");
-                row.CreateCell(3).SetCellValue(orden.Solicitante ?? "");
-                row.CreateCell(4).SetCellValue(orden.Proveedor ?? "");
-                row.CreateCell(5).SetCellValue(orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
-                row.CreateCell(6).SetCellValue(orden.Estado ?? "Sin Estado");
-                row.CreateCell(7).SetCellValue(orden.FechaEstado?.ToString("dd/MM/yyyy HH:mm") ?? "");
+                row.CreateCell(2).SetCellValue(orden.IdSolicitudPrecio?.ToString() ?? "");
+                row.CreateCell(3).SetCellValue(orden.SolicitudesVinculadas ?? "");
+                row.CreateCell(4).SetCellValue(orden.ReferenciasSolicitudesVinculadas ?? "");
+                row.CreateCell(5).SetCellValue(orden.SolicitantesSolicitudesVinculadas ?? "");
+                row.CreateCell(6).SetCellValue(orden.Referencia ?? "");
+                row.CreateCell(7).SetCellValue(orden.Solicitante ?? "");
+                row.CreateCell(8).SetCellValue(orden.Proveedor ?? "");
+                row.CreateCell(9).SetCellValue(orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
+                row.CreateCell(10).SetCellValue(orden.Estado ?? "Sin Estado");
+                row.CreateCell(11).SetCellValue(orden.IdEstado?.ToString() ?? "");
+                row.CreateCell(12).SetCellValue(orden.FechaEstado?.ToString("dd/MM/yyyy HH:mm") ?? "");
+                row.CreateCell(13).SetCellValue(orden.TipoCambio ?? "");
+                row.CreateCell(14).SetCellValue(orden.Observacion ?? "");
+                row.CreateCell(15).SetCellValue(orden.FormaPago ?? "");
+                row.CreateCell(16).SetCellValue(orden.MedioTransporte ?? "");
+                row.CreateCell(17).SetCellValue(orden.ResponsableRecepcion ?? "");
+                row.CreateCell(18).SetCellValue(orden.FechaEntrega?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(19).SetCellValue(orden.LugarEntrega ?? "");
+                row.CreateCell(20).SetCellValue(orden.FechaAnticipo?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(21).SetCellValue(orden.MontoAnticipo?.ToString() ?? "");
+                row.CreateCell(22).SetCellValue(orden.FechaPagoFinal?.ToString("dd/MM/yyyy") ?? "");
+                row.CreateCell(23).SetCellValue(orden.MontoPagoFinal?.ToString() ?? "");
+                row.CreateCell(24).SetCellValue(orden.Banco ?? "");
+                row.CreateCell(25).SetCellValue(orden.Cuenta ?? "");
+                row.CreateCell(26).SetCellValue(orden.NombreCuentaBancaria ?? "");
+                row.CreateCell(27).SetCellValue(orden.CodigoSwift ?? "");
+                row.CreateCell(28).SetCellValue(orden.Incoterm ?? "");
+                row.CreateCell(29).SetCellValue(orden.RazonSocial ?? "");
+                row.CreateCell(30).SetCellValue(orden.Nit ?? "");
+                row.CreateCell(31).SetCellValue(orden.Telefono ?? "");
+                row.CreateCell(32).SetCellValue(orden.NomContacto ?? "");
+                row.CreateCell(33).SetCellValue(orden.Aprobador ?? "");
+                row.CreateCell(34).SetCellValue(orden.IdAreaCorrespondencia?.ToString() ?? "");
+                row.CreateCell(35).SetCellValue(orden.CorrespondeAsc ?? "");
+                row.CreateCell(36).SetCellValue(orden.RecepcionTipo ?? "");
+                row.CreateCell(37).SetCellValue(orden.ObservacionRecepcion ?? "");
+                row.CreateCell(38).SetCellValue(orden.RutasArchivos ?? "");
             }
 
             for (var i = 0; i < columnas.Length; i++)
