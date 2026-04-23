@@ -30,11 +30,12 @@ namespace orion.Controllers
             var tipoUsuario = await ObtenerTipoUsuarioAsync();
             var idArea = tipoUsuario.Tipo == "PLANTA" ? tipoUsuario.IdArea : (string?)null;
             var soloAlmacen = tipoUsuario.Tipo == "ALMACEN";
+            var usuarioAlmacen = soloAlmacen ? tipoUsuario.NombreUsuario : null;
             try
             {
                 DateTime? desde = DateTime.TryParse(fechaDesde, out var fd) ? fd.Date : null;
                 DateTime? hasta = DateTime.TryParse(fechaHasta, out var fh) ? fh.Date.AddDays(1).AddSeconds(-1) : null;
-                var ordenes = await ObtenerDetalleReporteAsync(desde, hasta, null, idArea, soloAlmacen);
+                var ordenes = await ObtenerDetalleReporteAsync(desde, hasta, null, idArea, soloAlmacen, usuarioAlmacen);
                 var excelService = new ReporteOrdenCompraExcelService();
                 var excelBytes = excelService.GenerarExcelReporteGeneral(ordenes);
 
@@ -49,7 +50,13 @@ namespace orion.Controllers
             }
         }
 
-        private async Task<List<ReporteGeneralOrdenDetalleDto>> ObtenerDetalleReporteAsync(DateTime? fechaDesde, DateTime? fechaHasta, List<int>? estados, string? idAreaPlanta = null, bool soloAlmacen = false)
+        private async Task<List<ReporteGeneralOrdenDetalleDto>> ObtenerDetalleReporteAsync(
+            DateTime? fechaDesde,
+            DateTime? fechaHasta,
+            List<int>? estados,
+            string? idAreaPlanta = null,
+            bool soloAlmacen = false,
+            string? usuarioAlmacen = null)
         {
             // ── Obtener órdenes base ─────────────────────────────────────
             var query = _context.OrdenCompra
@@ -63,7 +70,9 @@ namespace orion.Controllers
             if (soloAlmacen)
             {
                 var idsConAlmacen = await _context.HistorialEstadoOrden
-                    .Where(h => h.IdEstadoNuevo == 9)
+                    .Where(h =>
+                        h.IdEstadoNuevo == 9 &&
+                        (string.IsNullOrWhiteSpace(usuarioAlmacen) || h.Usuario.ToUpper() == usuarioAlmacen.ToUpper()))
                     .Select(h => h.IdOrden)
                     .Distinct()
                     .ToListAsync();
@@ -276,12 +285,13 @@ namespace orion.Controllers
             var tipoUsuario = await ObtenerTipoUsuarioAsync();
             var idArea = tipoUsuario.Tipo == "PLANTA" ? tipoUsuario.IdArea : (string?)null;
             var soloAlmacen = tipoUsuario.Tipo == "ALMACEN";
+            var usuarioAlmacen = soloAlmacen ? tipoUsuario.NombreUsuario : null;
             try
             {
                 DateTime? desde = DateTime.TryParse(fechaDesde, out var fd) ? fd.Date : null;
                 DateTime? hasta = DateTime.TryParse(fechaHasta, out var fh) ? fh.Date.AddDays(1).AddSeconds(-1) : null;
 
-                var ordenes = await ObtenerDetalleReporteAsync(desde, hasta, null, idArea, soloAlmacen);
+                var ordenes = await ObtenerDetalleReporteAsync(desde, hasta, null, idArea, soloAlmacen, usuarioAlmacen);
 
                 return Json(ordenes);
             }
@@ -290,19 +300,19 @@ namespace orion.Controllers
                 return StatusCode(500, new { mensaje = "Error al obtener preview: " + ex.Message });
             }
         }
-        private async Task<(string Tipo, string? IdArea)> ObtenerTipoUsuarioAsync()
+        private async Task<(string Tipo, string? IdArea, string? NombreUsuario)> ObtenerTipoUsuarioAsync()
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId))
-                return ("COMPRAS", null);
+            var userName = User.Identity?.Name;
+            if (string.IsNullOrWhiteSpace(userName))
+                return ("COMPRAS", null, null);
 
             var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(u => u.Id.ToString() == userId);
+                .FirstOrDefaultAsync(u => u.Nombre == userName);
 
             if (usuario == null)
-                return ("COMPRAS", null);
+                return ("COMPRAS", null, userName);
 
-            return (usuario.IdTipo?.ToUpper() ?? "COMPRAS", usuario.Area);
+            return (usuario.IdTipo?.ToUpper() ?? "COMPRAS", usuario.Area, userName);
         }
         private static ReporteGeneralOrdenDetalleDto MapearOrdenDetalle(
             ReporteGeneralOrdenDto o,
