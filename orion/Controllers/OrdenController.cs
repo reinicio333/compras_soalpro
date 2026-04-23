@@ -997,34 +997,7 @@ namespace orion.Controllers
             }
         }
 
-        [HttpPost]
-        public async Task<IActionResult> GenerarExcel([FromBody] GenerarPdfDto datos)
-        {
-            try
-            {
-                var orden = await _context.OrdenCompra
-                    .Include(o => o.Estado)
-                    .FirstOrDefaultAsync(o => o.Id == datos.IdOrden);
-
-                if (orden == null)
-                {
-                    return NotFound();
-                }
-
-                var ordenDto = await ConvertirOrdenADto(orden);
-                var excelService = new ReporteOrdenCompraExcelService();
-                var excelBytes = excelService.GenerarExcelOrdenCompra(ordenDto);
-
-                return File(
-                    excelBytes,
-                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                    $"OC_{orden.Id}_{DateTime.Now:ddMMyyyy}.xlsx");
-            }
-            catch (Exception ex)
-            {
-                return Json(new { tipo = "error", mensaje = "Error al generar Excel: " + ex.Message });
-            }
-        }
+        
 
         [HttpGet]
         public async Task<IActionResult> GenerarReporteGeneralExcel()
@@ -1068,7 +1041,8 @@ namespace orion.Controllers
                     NombreItem = ds.Descripcion,
                     CodigoItem = ds.Codigo,
                     Cantidad = sp.Cantidad ?? ds.Cantidad,
-                    Precio = sp.Precio
+                    Precio = sp.Precio,
+                    Frequerimiento = ds.Frequerimiento   // ← fecha requerimiento
                 })
                 .ToListAsync();
 
@@ -1076,10 +1050,35 @@ namespace orion.Controllers
                 .GroupBy(x => x.IdSolicitudPrecio)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            // ── Historial de estados por orden ───────────────────────────
+            var idsOrdenes = ordenes.Select(o => o.Id).ToList();
+
+            var historialEstados = await _context.HistorialEstadoOrden
+                .Where(h => idsOrdenes.Contains(h.IdOrden))
+                .GroupBy(h => new { h.IdOrden, h.IdEstadoNuevo })
+                .Select(g => new
+                {
+                    g.Key.IdOrden,
+                    g.Key.IdEstadoNuevo,
+                    Fecha = g.Min(h => h.FechaCambio) // primera vez que llegó a ese estado
+                })
+                .ToListAsync();
+
+            var historialPorOrden = historialEstados
+                .GroupBy(h => h.IdOrden)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.ToDictionary(h => h.IdEstadoNuevo, h => h.Fecha)
+                );
+
             var resultado = new List<ReporteGeneralOrdenDetalleDto>();
 
             foreach (var orden in ordenes)
             {
+                var historial = historialPorOrden.TryGetValue(orden.Id, out var hist)
+                    ? hist
+                    : new Dictionary<int, DateTime>();
+
                 if (!orden.IdSolicitudPrecio.HasValue
                     || !detallePorSolicitudPrecio.TryGetValue(orden.IdSolicitudPrecio.Value, out var items)
                     || items.Count == 0)
@@ -1124,7 +1123,8 @@ namespace orion.Controllers
                         CorrespondeAsc = orden.CorrespondeAsc,
                         RecepcionTipo = orden.RecepcionTipo,
                         ObservacionRecepcion = orden.ObservacionRecepcion,
-                        RutasArchivos = orden.RutasArchivos
+                        RutasArchivos = orden.RutasArchivos,
+                        HistorialEstados = historial
                     });
                     continue;
                 }
@@ -1177,7 +1177,9 @@ namespace orion.Controllers
                         NombreItem = item.NombreItem,
                         CodigoItem = item.CodigoItem,
                         CantidadItem = item.Cantidad,
-                        PrecioItem = item.Precio
+                        PrecioItem = item.Precio,
+                        Frequerimiento = item.Frequerimiento,
+                        HistorialEstados = historial
                     });
                 }
             }
@@ -2044,6 +2046,8 @@ namespace orion.Controllers
         public string? CodigoItem { get; set; }
         public decimal? CantidadItem { get; set; }
         public decimal? PrecioItem { get; set; }
+        public DateTime? Frequerimiento { get; set; }
+        public Dictionary<int, DateTime>? HistorialEstados { get; set; }
     }
 
     #endregion

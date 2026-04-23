@@ -267,7 +267,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
-
 async function cargarOrdenes() {
     const permisos = await verificarPermisos();
     window.esUsuarioPlanta = permisos.tipo === 'PLANTA';
@@ -277,11 +276,17 @@ async function cargarOrdenes() {
         document.getElementById('btnNuevaOrden').style.display = 'none';
     }
 
+    const btnReporte = document.getElementById('btnReporteGeneralOrdenes');
+    if (btnReporte) {
+        const puedeVerReporte = permisos.tipo === 'ADMINISTRADOR' || permisos.tipo === 'COMPRAS';
+        btnReporte.style.display = puedeVerReporte ? '' : 'none';
+    }
+
     fetch('/Orden/ListarOrdenes')
         .then(resp => resp.json())
         .then(data => {
             if (Array.isArray(data)) {
-                window._todasLasOrdenes = data; // guarda todas
+                window._todasLasOrdenes = data;
 
                 if (window.tipoUsuario === 'ALMACEN') {
                     document.getElementById('tabsAlmacen').classList.remove('hidden');
@@ -291,7 +296,6 @@ async function cargarOrdenes() {
                 } else {
                     gridApi.setGridOption('rowData', data);
                 }
-
                 gridApi.refreshCells({ force: true });
             }
         });

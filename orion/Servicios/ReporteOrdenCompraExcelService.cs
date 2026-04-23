@@ -6,230 +6,268 @@ namespace orion.Servicios
 {
     public class ReporteOrdenCompraExcelService
     {
-        public byte[] GenerarExcelOrdenCompra(OrdenCompraDto datos)
-        {
-            IWorkbook workbook = new XSSFWorkbook();
-            var sheet = workbook.CreateSheet("OrdenCompra");
 
-            var estiloTitulo = workbook.CreateCellStyle();
-            var fuenteTitulo = workbook.CreateFont();
-            fuenteTitulo.IsBold = true;
-            fuenteTitulo.FontHeightInPoints = 14;
-            estiloTitulo.SetFont(fuenteTitulo);
-            estiloTitulo.Alignment = HorizontalAlignment.Center;
-
-            var estiloHeader = workbook.CreateCellStyle();
-            var fuenteHeader = workbook.CreateFont();
-            fuenteHeader.IsBold = true;
-            estiloHeader.SetFont(fuenteHeader);
-            estiloHeader.FillForegroundColor = IndexedColors.Grey25Percent.Index;
-            estiloHeader.FillPattern = FillPattern.SolidForeground;
-            estiloHeader.BorderBottom = BorderStyle.Thin;
-            estiloHeader.BorderTop = BorderStyle.Thin;
-            estiloHeader.BorderLeft = BorderStyle.Thin;
-            estiloHeader.BorderRight = BorderStyle.Thin;
-
-            var estiloMoneda = workbook.CreateCellStyle();
-            estiloMoneda.DataFormat = workbook.CreateDataFormat().GetFormat("#,##0.00");
-
-            var rowIndex = 0;
-            var rowTitulo = sheet.CreateRow(rowIndex++);
-            rowTitulo.CreateCell(0).SetCellValue($"ORDEN DE COMPRA #{datos.Id}");
-            rowTitulo.GetCell(0).CellStyle = estiloTitulo;
-            sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, 10));
-
-            rowIndex++;
-
-            void AddDato(string etiqueta, string? valor)
-            {
-                var row = sheet.CreateRow(rowIndex++);
-                row.CreateCell(0).SetCellValue(etiqueta);
-                row.CreateCell(1).SetCellValue(valor ?? string.Empty);
-            }
-
-            AddDato("Fecha", datos.Fecha);
-            AddDato("Proveedor", datos.Proveedor);
-            AddDato("Solicitante", datos.Solicitante);
-            AddDato("Referencia", datos.Referencia);
-            AddDato("Tipo Cambio", datos.Tc);
-            AddDato("Observación", datos.Cabecera?.Observacion);
-
-            rowIndex++;
-            var header = sheet.CreateRow(rowIndex++);
-            string[] columnas = { "Código", "Nro", "Descripción", "F. Entrega", "Características", "Unidad", "Cantidad", "Precio", "Total" };
-            for (var i = 0; i < columnas.Length; i++)
-            {
-                var cell = header.CreateCell(i);
-                cell.SetCellValue(columnas[i]);
-                cell.CellStyle = estiloHeader;
-            }
-
-            decimal totalGeneral = 0;
-            foreach (var producto in datos.Productos ?? new List<ProductoOrdenDto>())
-            {
-                var row = sheet.CreateRow(rowIndex++);
-                row.CreateCell(0).SetCellValue(producto.Codigo ?? "");
-                row.CreateCell(1).SetCellValue(producto.Nro ?? "");
-                row.CreateCell(2).SetCellValue(producto.Descripcion ?? "");
-                row.CreateCell(3).SetCellValue(producto.FechaEntrega ?? "");
-                row.CreateCell(4).SetCellValue(producto.Caracteristicas ?? "");
-                row.CreateCell(5).SetCellValue(producto.Unidad ?? "");
-                row.CreateCell(6).SetCellValue(Convert.ToDouble(producto.Cantidad));
-
-                var precio = Convert.ToDouble(producto.Precio);
-                row.CreateCell(7).SetCellValue(precio);
-                row.GetCell(7).CellStyle = estiloMoneda;
-
-                var total = precio * Convert.ToDouble(producto.Cantidad);
-                row.CreateCell(8).SetCellValue(total);
-                row.GetCell(8).CellStyle = estiloMoneda;
-
-                totalGeneral += (producto.Precio) * (producto.Cantidad);
-            }
-
-            var rowTotal = sheet.CreateRow(rowIndex);
-            rowTotal.CreateCell(7).SetCellValue("TOTAL");
-            rowTotal.GetCell(7).CellStyle = estiloHeader;
-            rowTotal.CreateCell(8).SetCellValue(Convert.ToDouble(totalGeneral));
-            rowTotal.GetCell(8).CellStyle = estiloMoneda;
-
-            for (var i = 0; i <= 8; i++)
-            {
-                sheet.AutoSizeColumn(i);
-            }
-
-            using var stream = new MemoryStream();
-            workbook.Write(stream);
-            return stream.ToArray();
-        }
 
         public byte[] GenerarExcelReporteGeneral(List<ReporteGeneralOrdenDetalleDto> ordenes)
         {
             IWorkbook workbook = new XSSFWorkbook();
             var sheet = workbook.CreateSheet("ReporteGeneral");
 
-            var estiloHeader = workbook.CreateCellStyle();
             var fuenteHeader = workbook.CreateFont();
             fuenteHeader.IsBold = true;
-            estiloHeader.SetFont(fuenteHeader);
-            estiloHeader.FillForegroundColor = IndexedColors.Grey25Percent.Index;
-            estiloHeader.FillPattern = FillPattern.SolidForeground;
+            fuenteHeader.Color = IndexedColors.White.Index;
+            fuenteHeader.FontHeightInPoints = 10;
 
-            var rowHeader = sheet.CreateRow(0);
-            string[] columnas =
+            var fuenteTitulo = workbook.CreateFont();
+            fuenteTitulo.IsBold = true;
+            fuenteTitulo.FontHeightInPoints = 14;
+            fuenteTitulo.Color = IndexedColors.White.Index;
+
+            var fuenteDato = workbook.CreateFont();
+            fuenteDato.FontHeightInPoints = 10;
+
+            var fuenteIdGrupo = workbook.CreateFont();
+            fuenteIdGrupo.IsBold = true;
+            fuenteIdGrupo.FontHeightInPoints = 10;
+
+            IDataFormat fmt = workbook.CreateDataFormat();
+
+            byte[][] coloresGrupo = {
+        new byte[] { 189, 215, 238 },
+        new byte[] { 198, 239, 206 },
+    };
+            byte[][] coloresGrupoOscuro = {
+        new byte[] { 155, 194, 230 },
+        new byte[] { 169, 208, 142 },
+    };
+
+            var bgEstado = new byte[] { 255, 230, 153 }; // amarillo para estado alcanzado
+            var bgEstadoVacio = new byte[] { 242, 242, 242 }; // gris para "—"
+
+            XSSFColor Rgb(byte[] rgb) { var c = new XSSFColor(); c.SetRgb(rgb); return c; }
+
+            XSSFCellStyle MakeStyle(byte[] bgRgb, bool negrita = false, bool numero = false, bool centrado = false)
             {
-                "ID",
-                "Fecha",
-                "Id Solicitud Precio",
-                "Id Solicitud",
-                "Solicitudes Vinculadas",
-                "Referencias Solicitudes",
-                "Solicitantes Solicitudes",
-                "Proveedor Item",
-                "Nombre Item",
-                "Codigo Item",
-                "Cantidad Item",
-                "Precio Item",
-                "Referencia OC",
-                "Solicitante OC",
-                "Proveedor",
-                "Tipo",
-                "Estado",
-                "Id Estado",
-                "Fecha Estado",
-                "Tipo Cambio",
-                "Observacion",
-                "Forma Pago",
-                "Medio Transporte",
-                "Responsable Recepcion",
-                "Fecha Entrega",
-                "Lugar Entrega",
-                "Fecha Anticipo",
-                "Monto Anticipo",
-                "Fecha Pago Final",
-                "Monto Pago Final",
-                "Banco",
-                "Cuenta",
-                "Nombre Cuenta Bancaria",
-                "Codigo Swift",
-                "Incoterm",
-                "Razon Social",
-                "NIT",
-                "Telefono",
-                "Nombre Contacto",
-                "Aprobador",
-                "Id Area Correspondencia",
-                "Corresponde ASC",
-                "Recepcion Tipo",
-                "Observacion Recepcion",
-                "Adjuntos (JSON)"
+                var s = (XSSFCellStyle)workbook.CreateCellStyle();
+                s.SetFont(negrita ? fuenteIdGrupo : fuenteDato);
+                s.SetFillForegroundColor(Rgb(bgRgb));
+                s.FillPattern = FillPattern.SolidForeground;
+                s.BorderTop = BorderStyle.Thin;
+                s.BorderBottom = BorderStyle.Thin;
+                s.BorderLeft = BorderStyle.Thin;
+                s.BorderRight = BorderStyle.Thin;
+                s.TopBorderColor = IndexedColors.Grey50Percent.Index;
+                s.BottomBorderColor = IndexedColors.Grey50Percent.Index;
+                s.LeftBorderColor = IndexedColors.Grey50Percent.Index;
+                s.RightBorderColor = IndexedColors.Grey50Percent.Index;
+                s.VerticalAlignment = VerticalAlignment.Center;
+                if (numero) s.DataFormat = fmt.GetFormat("#,##0.00");
+                if (centrado) s.Alignment = HorizontalAlignment.Center;
+                return s;
+            }
+
+            XSSFCellStyle MakeEstadoStyle(bool alcanzado)
+            {
+                var s = (XSSFCellStyle)workbook.CreateCellStyle();
+                s.SetFont(fuenteDato);
+                s.SetFillForegroundColor(Rgb(alcanzado ? bgEstado : bgEstadoVacio));
+                s.FillPattern = FillPattern.SolidForeground;
+                s.BorderTop = BorderStyle.Thin;
+                s.BorderBottom = BorderStyle.Thin;
+                s.BorderLeft = BorderStyle.Thin;
+                s.BorderRight = BorderStyle.Thin;
+                s.TopBorderColor = IndexedColors.Grey50Percent.Index;
+                s.BottomBorderColor = IndexedColors.Grey50Percent.Index;
+                s.LeftBorderColor = IndexedColors.Grey50Percent.Index;
+                s.RightBorderColor = IndexedColors.Grey50Percent.Index;
+                s.VerticalAlignment = VerticalAlignment.Center;
+                s.Alignment = HorizontalAlignment.Center;
+                return s;
+            }
+
+            var estiloTitulo = (XSSFCellStyle)workbook.CreateCellStyle();
+            estiloTitulo.SetFont(fuenteTitulo);
+            estiloTitulo.SetFillForegroundColor(Rgb(new byte[] { 31, 73, 125 }));
+            estiloTitulo.FillPattern = FillPattern.SolidForeground;
+            estiloTitulo.Alignment = HorizontalAlignment.Center;
+            estiloTitulo.VerticalAlignment = VerticalAlignment.Center;
+
+            var estiloHeader = (XSSFCellStyle)workbook.CreateCellStyle();
+            estiloHeader.SetFont(fuenteHeader);
+            estiloHeader.SetFillForegroundColor(Rgb(new byte[] { 31, 73, 125 }));
+            estiloHeader.FillPattern = FillPattern.SolidForeground;
+            estiloHeader.BorderTop = BorderStyle.Medium;
+            estiloHeader.BorderBottom = BorderStyle.Medium;
+            estiloHeader.BorderLeft = BorderStyle.Thin;
+            estiloHeader.BorderRight = BorderStyle.Thin;
+            estiloHeader.Alignment = HorizontalAlignment.Center;
+            estiloHeader.VerticalAlignment = VerticalAlignment.Center;
+
+            var estadosColumnas = new (int Id, string Nombre)[]
+            {
+        (1,  "Pedido"),
+        (2,  "Pre autorización"),
+        (3,  "Aprobación OC"),
+        (4,  "En tránsito extranjero"),
+        (5,  "En aduana"),
+        (6,  "En senasag"),
+        (7,  "En tránsito nacional"),
+        (8,  "Enviado a Proveedor"),
+        (9,  "Recepción almacenes"),
+        (10, "Costeado en SAP"),
+        (11, "Rechazado"),
             };
-            for (var i = 0; i < columnas.Length; i++)
+
+            string[] columnaBase =
+            {
+        "Nº OC",                   // 0  ← merge por grupo
+        "Fecha Creación OC",       // 1
+        "Nº Solicitud",            // 2
+        "Solicitantes",            // 3
+        "Fecha Requerimiento",     // 4
+        "Proveedor Item",          // 5
+        "Nombre Item",             // 6
+        "Codigo Item",             // 7
+        "Cantidad",                // 8
+        "Precio",                  // 9
+        "Tipo",                    // 10
+    };
+
+            int colBase = columnaBase.Length;               // 11
+            int totalCols = colBase + estadosColumnas.Length; // 11 + 11 = 22
+
+            // ── Fila 0: Título ───────────────────────────────────────────
+            var rowTitulo = sheet.CreateRow(0);
+            rowTitulo.HeightInPoints = 26;
+            for (int c = 0; c < totalCols; c++)
+            {
+                var tmp = rowTitulo.CreateCell(c);
+                tmp.CellStyle = estiloTitulo;
+                if (c == 0) tmp.SetCellValue("REPORTE GENERAL DE ÓRDENES DE COMPRA");
+            }
+            sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(0, 0, 0, totalCols - 1));
+
+            // ── Fila 1: Headers ──────────────────────────────────────────
+            var rowHeader = sheet.CreateRow(1);
+            rowHeader.HeightInPoints = 22;
+            for (int i = 0; i < colBase; i++)
             {
                 var cell = rowHeader.CreateCell(i);
-                cell.SetCellValue(columnas[i]);
+                cell.SetCellValue(columnaBase[i]);
+                cell.CellStyle = estiloHeader;
+            }
+            for (int i = 0; i < estadosColumnas.Length; i++)
+            {
+                var cell = rowHeader.CreateCell(colBase + i);
+                cell.SetCellValue(estadosColumnas[i].Nombre);
                 cell.CellStyle = estiloHeader;
             }
 
-            var rowIndex = 1;
-            foreach (var orden in ordenes)
+            // ── Datos agrupados por ID ───────────────────────────────────
+            var grupos = ordenes.GroupBy(o => o.Id).ToList();
+            var rowIndex = 2;
+            var grupoIdx = 0;
+
+            foreach (var grupo in grupos)
             {
-                var row = sheet.CreateRow(rowIndex++);
-                row.CreateCell(0).SetCellValue(orden.Id);
-                row.CreateCell(1).SetCellValue(orden.Fecha?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(2).SetCellValue(orden.IdSolicitudPrecio?.ToString() ?? "");
-                row.CreateCell(3).SetCellValue(orden.IdSolicitud?.ToString() ?? "");
-                row.CreateCell(4).SetCellValue(orden.SolicitudesVinculadas ?? "");
-                row.CreateCell(5).SetCellValue(orden.ReferenciasSolicitudesVinculadas ?? "");
-                row.CreateCell(6).SetCellValue(orden.SolicitantesSolicitudesVinculadas ?? "");
-                row.CreateCell(7).SetCellValue(orden.ProveedorItem ?? "");
-                row.CreateCell(8).SetCellValue(orden.NombreItem ?? "");
-                row.CreateCell(9).SetCellValue(orden.CodigoItem ?? "");
-                row.CreateCell(10).SetCellValue(orden.CantidadItem?.ToString() ?? "");
-                row.CreateCell(11).SetCellValue(orden.PrecioItem?.ToString() ?? "");
-                row.CreateCell(12).SetCellValue(orden.Referencia ?? "");
-                row.CreateCell(13).SetCellValue(orden.Solicitante ?? "");
-                row.CreateCell(14).SetCellValue(orden.Proveedor ?? "");
-                row.CreateCell(15).SetCellValue(orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
-                row.CreateCell(16).SetCellValue(orden.Estado ?? "Sin Estado");
-                row.CreateCell(17).SetCellValue(orden.IdEstado?.ToString() ?? "");
-                row.CreateCell(18).SetCellValue(orden.FechaEstado?.ToString("dd/MM/yyyy HH:mm") ?? "");
-                row.CreateCell(19).SetCellValue(orden.TipoCambio ?? "");
-                row.CreateCell(20).SetCellValue(orden.Observacion ?? "");
-                row.CreateCell(21).SetCellValue(orden.FormaPago ?? "");
-                row.CreateCell(22).SetCellValue(orden.MedioTransporte ?? "");
-                row.CreateCell(23).SetCellValue(orden.ResponsableRecepcion ?? "");
-                row.CreateCell(24).SetCellValue(orden.FechaEntrega?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(25).SetCellValue(orden.LugarEntrega ?? "");
-                row.CreateCell(26).SetCellValue(orden.FechaAnticipo?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(27).SetCellValue(orden.MontoAnticipo?.ToString() ?? "");
-                row.CreateCell(28).SetCellValue(orden.FechaPagoFinal?.ToString("dd/MM/yyyy") ?? "");
-                row.CreateCell(29).SetCellValue(orden.MontoPagoFinal?.ToString() ?? "");
-                row.CreateCell(30).SetCellValue(orden.Banco ?? "");
-                row.CreateCell(31).SetCellValue(orden.Cuenta ?? "");
-                row.CreateCell(32).SetCellValue(orden.NombreCuentaBancaria ?? "");
-                row.CreateCell(33).SetCellValue(orden.CodigoSwift ?? "");
-                row.CreateCell(34).SetCellValue(orden.Incoterm ?? "");
-                row.CreateCell(35).SetCellValue(orden.RazonSocial ?? "");
-                row.CreateCell(36).SetCellValue(orden.Nit ?? "");
-                row.CreateCell(37).SetCellValue(orden.Telefono ?? "");
-                row.CreateCell(38).SetCellValue(orden.NomContacto ?? "");
-                row.CreateCell(39).SetCellValue(orden.Aprobador ?? "");
-                row.CreateCell(40).SetCellValue(orden.IdAreaCorrespondencia?.ToString() ?? "");
-                row.CreateCell(41).SetCellValue(orden.CorrespondeAsc ?? "");
-                row.CreateCell(42).SetCellValue(orden.RecepcionTipo ?? "");
-                row.CreateCell(43).SetCellValue(orden.ObservacionRecepcion ?? "");
-                row.CreateCell(44).SetCellValue(orden.RutasArchivos ?? "");
+                var items = grupo.ToList();
+                int colorIdx = grupoIdx % 2;
+
+                var sTexto = MakeStyle(coloresGrupo[colorIdx]);
+                var sNum = MakeStyle(coloresGrupo[colorIdx], numero: true);
+                var sId = MakeStyle(coloresGrupoOscuro[colorIdx], negrita: true, centrado: true);
+
+                var historial = items[0].HistorialEstados ?? new Dictionary<int, DateTime>();
+
+                int filaInicio = rowIndex;
+
+                for (int itemIdx = 0; itemIdx < items.Count; itemIdx++)
+                {
+                    var orden = items[itemIdx];
+                    var row = sheet.CreateRow(rowIndex);
+                    row.HeightInPoints = 16;
+
+                    void T(int col, string? val) { var cc = row.CreateCell(col); cc.CellStyle = sTexto; cc.SetCellValue(val ?? ""); }
+                    void N(int col, double val) { var cc = row.CreateCell(col); cc.CellStyle = sNum; cc.SetCellValue(val); }
+
+                    // Col 0: Nº OC — valor solo en primera fila del grupo
+                    var cellId = row.CreateCell(0);
+                    cellId.CellStyle = sId;
+                    if (itemIdx == 0) cellId.SetCellValue(orden.Id.ToString());
+
+                    T(1, orden.Fecha?.ToString("dd/MM/yyyy") ?? "");
+                    T(2, orden.IdSolicitud?.ToString() ?? "");
+                    T(3, orden.SolicitantesSolicitudesVinculadas ?? "");
+                    T(4, orden.Frequerimiento?.ToString("dd/MM/yyyy") ?? "");
+                    T(5, orden.ProveedorItem ?? "");
+                    T(6, orden.NombreItem ?? "");
+                    T(7, orden.CodigoItem ?? "");
+
+                    if (orden.CantidadItem.HasValue) N(8, Convert.ToDouble(orden.CantidadItem.Value));
+                    else T(8, "");
+                    if (orden.PrecioItem.HasValue) N(9, Convert.ToDouble(orden.PrecioItem.Value));
+                    else T(9, "");
+
+                    T(10, orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
+
+                    // Columnas de estado: solo en primera fila del grupo
+                    if (itemIdx == 0)
+                    {
+                        for (int e = 0; e < estadosColumnas.Length; e++)
+                        {
+                            int estadoId = estadosColumnas[e].Id;
+                            var cc = row.CreateCell(colBase + e);
+                            bool alcanzado = historial.TryGetValue(estadoId, out var fechaEstado);
+                            cc.CellStyle = MakeEstadoStyle(alcanzado);
+                            cc.SetCellValue(alcanzado ? fechaEstado.ToString("dd/MM/yyyy HH:mm") : "—");
+                        }
+                    }
+                    else
+                    {
+                        for (int e = 0; e < estadosColumnas.Length; e++)
+                        {
+                            var cc = row.CreateCell(colBase + e);
+                            cc.CellStyle = MakeEstadoStyle(false);
+                            cc.SetCellValue("");
+                        }
+                    }
+
+                    rowIndex++;
+                }
+
+                // Merge Nº OC y columnas de estado si hay más de 1 ítem
+                if (items.Count > 1)
+                {
+                    sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(filaInicio, rowIndex - 1, 0, 0));
+                    for (int e = 0; e < estadosColumnas.Length; e++)
+                    {
+                        sheet.AddMergedRegion(new NPOI.SS.Util.CellRangeAddress(
+                            filaInicio, rowIndex - 1, colBase + e, colBase + e));
+                    }
+                }
+
+                grupoIdx++;
             }
 
-            for (var i = 0; i < columnas.Length; i++)
+            // ── AutoSize con ancho mínimo ────────────────────────────────
+            for (var i = 0; i < totalCols; i++)
             {
                 sheet.AutoSizeColumn(i);
+                if (sheet.GetColumnWidth(i) < 10 * 256)
+                    sheet.SetColumnWidth(i, 10 * 256);
             }
+
+            sheet.CreateFreezePane(0, 2);
+            sheet.SetAutoFilter(new NPOI.SS.Util.CellRangeAddress(1, 1, 0, totalCols - 1));
 
             using var stream = new MemoryStream();
             workbook.Write(stream);
             return stream.ToArray();
+        }
+
+        private void T(int v, object value)
+        {
+            throw new NotImplementedException();
         }
     }
 }

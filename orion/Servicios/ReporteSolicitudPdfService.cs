@@ -20,15 +20,45 @@ namespace orion.Servicios
                     page.PageColor(Colors.White);
                     page.DefaultTextStyle(x => x.FontSize(9).FontFamily("Arial"));
 
-                    page.Header().Element(content => ComposeHeader(content, solicitud));
-                    page.Content().Element(content => ComposeContent(content, detalles));
-                    page.Footer().Element(ComposeFooter);
+                    page.Header().Element(content => ComposeHeaderSimple(content, solicitud));
+                    page.Content().Element(content => ComposeContent(content, detalles, solicitud));
+                    page.Footer().AlignCenter().Text(text =>
+                    {
+                        text.Span("Página ");
+                        text.CurrentPageNumber();
+                        text.Span(" de ");
+                        text.TotalPages();
+                    });
                 });
             });
 
             return document.GeneratePdf();
         }
 
+        void ComposeHeaderSimple(IContainer container, Solicitudes solicitud)
+        {
+            var logoBytes = CargarImagen("images/soalpro.png");
+
+            container.Column(column =>
+            {
+                column.Item().Row(row =>
+                {
+                    if (logoBytes != null)
+                        row.ConstantItem(150).Height(45).Image(logoBytes, ImageScaling.FitArea);
+                    row.RelativeItem();
+                    row.ConstantItem(150).AlignRight().AlignTop()
+                        .Text($"N°: {solicitud.Id}").Bold().FontSize(11);
+                });
+
+                column.Item().Row(row =>
+                {
+                    row.RelativeItem().Background(Colors.Red.Darken1).Padding(3)
+                        .AlignCenter().AlignMiddle()
+                        .Text("SOLICITUD DE COMPRA (BIENES O SERVICIOS)")
+                        .FontSize(12).Bold().FontColor(Colors.White);
+                });
+            });
+        }
         void ComposeHeader(IContainer container, Solicitudes solicitud)
         {
             var logoBytes = CargarImagen("images/soalpro.png");
@@ -111,10 +141,39 @@ namespace orion.Servicios
             });
         }
 
-        void ComposeContent(IContainer container, List<DetalleSolicitudes> detalles)
+        void ComposeContent(IContainer container, List<DetalleSolicitudes> detalles, Solicitudes solicitud)
         {
             container.PaddingTop(10).Column(column =>
             {
+                column.Item().PaddingBottom(10).Row(row =>
+                {
+                    row.RelativeItem().Column(c =>
+                    {
+                        c.Item().Row(r =>
+                        {
+                            r.ConstantItem(60).AlignBottom().Text("FECHA:").Bold().FontSize(9);
+                            r.ConstantItem(100).Border(1).BorderColor(Colors.Black)
+                                .Padding(3).Text(solicitud.Fecha.ToString("dd/MM/yyyy")).FontSize(9);
+                        });
+                    });
+                    row.ConstantItem(30);
+                    row.RelativeItem().Column(c =>
+                    {
+                        c.Item().Row(r =>
+                        {
+                            r.ConstantItem(90).AlignBottom().Text("REFERENCIA:").Bold().FontSize(9);
+                            r.ConstantItem(150).Border(1).BorderColor(Colors.Black)
+                                .Padding(3).Text(solicitud.Referencia ?? "").FontSize(9);
+                        });
+                        c.Item().PaddingTop(5);
+                        c.Item().Row(r =>
+                        {
+                            r.ConstantItem(90).AlignBottom().Text("SOLICITANTE:").Bold().FontSize(9);
+                            r.ConstantItem(150).Border(1).BorderColor(Colors.Black)
+                                .Padding(3).Text(solicitud.Solicitante ?? "").FontSize(9);
+                        });
+                    });
+                });
                 // Tabla de contenido
                 column.Item().Table(table =>
                 {
@@ -211,39 +270,30 @@ namespace orion.Servicios
                 });
 
                 // Espaciador que empuja el footer hacia abajo
-                column.Item().ExtendVertical();
+                column.Item().PaddingTop(20).Row(row =>
+                {
+                    row.RelativeItem();
+                    row.ConstantItem(250).Column(column2 =>
+                    {
+                        column2.Item().Border(1).BorderColor(Colors.Black)
+                            .Height(80).AlignBottom().AlignCenter()
+                            .PaddingBottom(5)
+                            .Text("SOLICITADO POR").Bold().FontSize(9);
+                    });
+                    row.ConstantItem(50);
+                    row.ConstantItem(250).Column(column2 =>
+                    {
+                        column2.Item().Border(1).BorderColor(Colors.Black)
+                            .Height(80).AlignBottom().AlignCenter()
+                            .PaddingBottom(5)
+                            .Text("AUTORIZADO POR JEFE DE ÁREA").Bold().FontSize(9);
+                    });
+                    row.RelativeItem();
+                });
             });
         }
 
-        void ComposeFooter(IContainer container)
-        {
-            container.Row(row =>
-            {
-                row.RelativeItem(); // Espacio izquierdo
-
-                // SOLICITADO POR
-                row.ConstantItem(250).Column(column =>
-                {
-                    column.Item().Border(1).BorderColor(Colors.Black)
-                        .Height(80).AlignBottom().AlignCenter()
-                        .PaddingBottom(5)
-                        .Text("SOLICITADO POR").Bold().FontSize(9);
-                });
-
-                row.ConstantItem(50); // Espacio entre firmas
-
-                // AUTORIZADO POR JEFE DE ÁREA
-                row.ConstantItem(250).Column(column =>
-                {
-                    column.Item().Border(1).BorderColor(Colors.Black)
-                        .Height(80).AlignBottom().AlignCenter()
-                        .PaddingBottom(5)
-                        .Text("AUTORIZADO POR JEFE DE ÁREA").Bold().FontSize(9);
-                });
-
-                row.RelativeItem(); // Espacio derecho
-            });
-        }
+        
 
         private byte[] CargarImagen(string rutaRelativa)
         {

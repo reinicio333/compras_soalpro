@@ -1,0 +1,201 @@
+﻿@{
+    ViewData["Title"] = "Reportes";
+}
+
+<style>
+    /* ── Tabla preview ─────────────────────────────── */
+    #preview-container {
+        overflow-x: auto;
+    }
+
+    #tabla-preview {
+        font-size: 11px;
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 900px;
+    }
+
+        #tabla-preview thead th {
+            background: #1f497d;
+            color: white;
+            padding: 8px 10px;
+            text-align: center;
+            white-space: nowrap;
+            border: 1px solid #374151;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        #tabla-preview tbody tr:nth-child(odd) {
+            background: #bdd7ee22;
+        }
+
+        #tabla-preview tbody tr:nth-child(even) {
+            background: #c6efce22;
+        }
+
+        #tabla-preview tbody tr:hover {
+            background: #374151;
+        }
+
+        #tabla-preview td {
+            padding: 5px 8px;
+            border: 1px solid #374151;
+            color: #d1d5db;
+            white-space: nowrap;
+            vertical-align: middle;
+        }
+
+            #tabla-preview td.col-id {
+                font-weight: 700;
+                text-align: center;
+                color: #fff;
+                background: #9bc2e6;
+                color: #1e293b;
+            }
+
+            #tabla-preview td.col-num {
+                text-align: right;
+            }
+
+    .estado-badge {
+        padding: 2px 7px;
+        border-radius: 10px;
+        font-size: 10px;
+        font-weight: 600;
+        text-transform: uppercase;
+        background: #374151;
+        color: #9ca3af;
+        display: inline-block;
+    }
+
+        .estado-badge.alcanzado {
+            background: #fef08a;
+            color: #713f12;
+        }
+
+    /* ── Skeleton loader ───────────────────────────── */
+    .skeleton {
+        background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
+        background-size: 200% 100%;
+        animation: shimmer 1.2s infinite;
+        border-radius: 4px;
+        height: 14px;
+        display: inline-block;
+    }
+
+    @@keyframes shimmer {
+        0% {
+            background-position: 200% 0;
+        }
+
+        100% {
+            background-position: -200% 0;
+        }
+    }
+</style>
+
+<div class="space-y-6">
+
+    <!-- Header -->
+    <div class="bg-gray-800 rounded-xl p-6 shadow-2xl border border-gray-700">
+        <div class="flex items-center space-x-3">
+            <div class="p-3 bg-emerald-600 rounded-lg">
+                <i class="fas fa-chart-bar text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-2xl font-bold text-white">Reportes</h1>
+                <p class="text-gray-400 text-sm">Generación de reportes de órdenes de compra</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Card de filtros -->
+    <div class="bg-gray-800 rounded-xl border border-gray-700 p-6 max-w-3xl">
+        <h2 class="text-sm font-semibold text-white mb-5 flex items-center">
+            <i class="fas fa-filter mr-2 text-emerald-400"></i>Reporte General de Órdenes de Compra
+        </h2>
+
+        <div class="space-y-5">
+
+            <!-- Rango de fechas -->
+            <div>
+                <label class="block text-xs font-medium text-gray-300 mb-2">
+                    <i class="fas fa-calendar mr-1 text-blue-400"></i>
+                    Rango de Fecha Requerimiento
+                </label>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Desde:</label>
+                        <input type="date" id="reporte_fecha_desde"
+                               class="bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-1">Hasta:</label>
+                        <input type="date" id="reporte_fecha_hasta"
+                               class="bg-gray-700 border border-gray-600 text-white text-xs rounded-lg block w-full p-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+                    </div>
+                </div>
+                <p class="text-[11px] text-gray-500 mt-1">
+                    Deja vacío para incluir todas las fechas.
+                </p>
+            </div>
+
+            <!-- Botones -->
+            <div class="flex items-center gap-3 pt-2 border-t border-gray-700 flex-wrap">
+                <button id="btnPrevisualizar" type="button" onclick="previsualizarReporte()"
+                        class="inline-flex items-center px-5 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors focus:ring-4 focus:ring-blue-800">
+                    <i class="fas fa-eye mr-2"></i>Previsualizar
+                </button>
+
+                <button id="btnDescargarReporte" type="button" onclick="descargarReporte()"
+                        class="inline-flex items-center px-5 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors focus:ring-4 focus:ring-emerald-800">
+                    <i class="fas fa-file-excel mr-2"></i>Descargar Excel
+                </button>
+
+                <span class="text-xs text-gray-400">
+                    El reporte incluirá todas las órdenes que coincidan con los filtros.
+                </span>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Vista previa -->
+    <div id="seccion-preview" class="hidden">
+        <div class="bg-gray-800 rounded-xl border border-gray-700 p-6">
+
+            <!-- Header preview -->
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-sm font-semibold text-white flex items-center gap-2">
+                    <i class="fas fa-table text-blue-400"></i>
+                    Vista Previa
+                    <span id="preview-count" class="text-xs text-gray-400 font-normal"></span>
+                </h2>
+                <button onclick="cerrarPreview()"
+                        class="text-gray-500 hover:text-gray-300 transition-colors text-xs flex items-center gap-1">
+                    <i class="fas fa-times"></i> Cerrar
+                </button>
+            </div>
+
+            <!-- Tabla -->
+            <div id="preview-container" class="max-h-[520px] overflow-auto rounded-lg border border-gray-700">
+                <table id="tabla-preview">
+                    <thead id="preview-thead"></thead>
+                    <tbody id="preview-tbody">
+                        <tr>
+                            <td colspan="22" class="text-center text-gray-500 py-6 text-xs">
+                                Haz clic en <strong class="text-white">Previsualizar</strong> para ver los datos.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script src="~/js/pages/reportes.js"></script>
