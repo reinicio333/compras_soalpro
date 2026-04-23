@@ -28,14 +28,22 @@ namespace orion.Controllers
         public async Task<IActionResult> GenerarReporteExcel(string? fechaDesde = null,string? fechaHasta = null)
         {
             var tipoUsuario = await ObtenerTipoUsuarioAsync();
-            var idArea = tipoUsuario.Tipo == "PLANTA" ? tipoUsuario.IdArea : (string?)null;
+            var areaPlanta = tipoUsuario.Tipo == "PLANTA" ? tipoUsuario.IdArea : (string?)null;
+            var filtrarPlantaPorSolicitante = tipoUsuario.Tipo == "PLANTA" && !string.IsNullOrWhiteSpace(areaPlanta);
             var soloAlmacen = tipoUsuario.Tipo == "ALMACEN";
             var usuarioAlmacen = soloAlmacen ? tipoUsuario.NombreUsuario : null;
             try
             {
                 DateTime? desde = DateTime.TryParse(fechaDesde, out var fd) ? fd.Date : null;
                 DateTime? hasta = DateTime.TryParse(fechaHasta, out var fh) ? fh.Date.AddDays(1).AddSeconds(-1) : null;
-                var ordenes = await ObtenerDetalleReporteAsync(desde, hasta, null, idArea, soloAlmacen, usuarioAlmacen);
+                var ordenes = await ObtenerDetalleReporteAsync(
+                    desde,
+                    hasta,
+                    null,
+                    areaPlanta,
+                    filtrarPlantaPorSolicitante,
+                    soloAlmacen,
+                    usuarioAlmacen);
                 var excelService = new ReporteOrdenCompraExcelService();
                 var excelBytes = excelService.GenerarExcelReporteGeneral(ordenes);
 
@@ -54,7 +62,8 @@ namespace orion.Controllers
             DateTime? fechaDesde,
             DateTime? fechaHasta,
             List<int>? estados,
-            string? idAreaPlanta = null,
+            string? areaPlanta = null,
+            bool filtrarPlantaPorSolicitante = false,
             bool soloAlmacen = false,
             string? usuarioAlmacen = null)
         {
@@ -62,9 +71,32 @@ namespace orion.Controllers
             var query = _context.OrdenCompra
                 .Include(o => o.Estado)
                 .AsQueryable();
-            // Filtro perfil PLANTA: solo su área
-            if (!string.IsNullOrEmpty(idAreaPlanta))
-                query = query.Where(o => o.IdAreaCorrespondencia.ToString() == idAreaPlanta);
+            // Filtro perfil PLANTA: mismas reglas de Órdenes de Compra (usuarios del área)
+            if (filtrarPlantaPorSolicitante && !string.IsNullOrWhiteSpace(areaPlanta))
+            {
+                var usuariosDelArea = await _context.Usuarios
+                    .Where(u => u.Area == areaPlanta)
+                    .Select(u => u.Nombre)
+                    .ToListAsync();
+
+                var idSolicitudesDelArea = await _context.Solicitudes
+                    .Where(s => usuariosDelArea.Contains(s.Solicitante))
+                    .Select(s => s.Id)
+                    .ToListAsync();
+
+                var idDetalleSolicitudesDelArea = await _context.DetalleSolicitudes
+                    .Where(d => idSolicitudesDelArea.Contains(d.IdSolicitud))
+                    .Select(d => d.Id.ToString())
+                    .ToListAsync();
+
+                var idSolicitudPrecioDelArea = await _context.SolicitudPrecio
+                    .Where(sp => idDetalleSolicitudesDelArea.Contains(sp.IdDetalleSolicitud))
+                    .Select(sp => sp.IdSolicitudPrecio)
+                    .Distinct()
+                    .ToListAsync();
+
+                query = query.Where(o => idSolicitudPrecioDelArea.Contains(o.IdSolicitudPrecio));
+            }
 
             // Filtro perfil ALMACEN: solo órdenes que alguna vez llegaron a estado 9
             if (soloAlmacen)
@@ -283,7 +315,8 @@ namespace orion.Controllers
         public async Task<IActionResult> GetPreviewReporte(string? fechaDesde = null,string? fechaHasta = null)
         {
             var tipoUsuario = await ObtenerTipoUsuarioAsync();
-            var idArea = tipoUsuario.Tipo == "PLANTA" ? tipoUsuario.IdArea : (string?)null;
+            var areaPlanta = tipoUsuario.Tipo == "PLANTA" ? tipoUsuario.IdArea : (string?)null;
+            var filtrarPlantaPorSolicitante = tipoUsuario.Tipo == "PLANTA" && !string.IsNullOrWhiteSpace(areaPlanta);
             var soloAlmacen = tipoUsuario.Tipo == "ALMACEN";
             var usuarioAlmacen = soloAlmacen ? tipoUsuario.NombreUsuario : null;
             try
@@ -291,7 +324,14 @@ namespace orion.Controllers
                 DateTime? desde = DateTime.TryParse(fechaDesde, out var fd) ? fd.Date : null;
                 DateTime? hasta = DateTime.TryParse(fechaHasta, out var fh) ? fh.Date.AddDays(1).AddSeconds(-1) : null;
 
-                var ordenes = await ObtenerDetalleReporteAsync(desde, hasta, null, idArea, soloAlmacen, usuarioAlmacen);
+                var ordenes = await ObtenerDetalleReporteAsync(
+                    desde,
+                    hasta,
+                    null,
+                    areaPlanta,
+                    filtrarPlantaPorSolicitante,
+                    soloAlmacen,
+                    usuarioAlmacen);
 
                 return Json(ordenes);
             }
