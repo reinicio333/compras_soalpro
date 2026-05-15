@@ -193,7 +193,7 @@ namespace orion.Controllers
                     Console.WriteLine($"[EMAIL ERROR] {exEmail.InnerException?.Message}");
                 }
 
-                return Json(new { tipo = "success", mensaje = "SOLICITUD REGISTRADA CON ÉXITO" });
+                return Json(new { tipo = "success", mensaje = "SOLICITUD REGISTRADA CON ÉXITO", idSolicitud = solicitud.Id });
             }
             catch (Exception ex)
             {
@@ -377,7 +377,7 @@ namespace orion.Controllers
                     // No interrumpir el flujo principal.
                 }
 
-                return Json(new { tipo = "success", mensaje = "SOLICITUD ACTUALIZADA CON ÉXITO" });
+                return Json(new { tipo = "success", mensaje = "SOLICITUD ACTUALIZADA CON ÉXITO", idSolicitud = solicitud.Id });
             }
             catch (Exception ex)
             {

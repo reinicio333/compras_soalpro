@@ -618,6 +618,7 @@ btnNuevaSolicitud.addEventListener("click", function () {
     title.textContent = "SOLICITUD DE COMPRA (BIENES O SERVICIOS)";
     frm.id.value = '';
     frm.reset();
+    actualizarArchivosPendientes();
 
     const hoy = new Date();
     const fechaLocal = new Date(hoy.getTime() - (hoy.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
@@ -677,12 +678,25 @@ frm.addEventListener("submit", function (e) {
     http.open("POST", url, true);
     http.send(dataMayusculas);
 
-    http.onreadystatechange = function () {
+    http.onreadystatechange = async function () {
         if (this.readyState == 4 && this.status == 200) {
             const res = JSON.parse(this.responseText);
             alertaPersonalizada(res.tipo, res.mensaje);
             if (res.tipo == 'success') {
+                const idSolicitudGuardada = res.idSolicitud || parseInt(frm.id.value || '0');
+                const inputArchivos = document.getElementById('archivos_solicitud');
+
+                if (idSolicitudGuardada) {
+                    frm.id.value = idSolicitudGuardada;
+                }
+
+                if (inputArchivos?.files?.length) {
+                    const archivosSubidos = await subirArchivosSolicitud(idSolicitudGuardada, true);
+                    if (!archivosSubidos) return;
+                }
+
                 frm.reset();
+                actualizarArchivosPendientes();
                 document.querySelector("#productosLista").innerHTML = '';
                 contadorProductos = 0;
                 const modal = new window.Modal(modalSolicitud);
@@ -702,9 +716,10 @@ frm.addEventListener("submit", function (e) {
 });
 
 
-function vistaPreviaSolicitud(id) {
+async function vistaPreviaSolicitud(id) {
     const iframe = document.getElementById('iframePDFSolicitud');
     iframe.src = `/Solicitudes/VistaPreviaPdfSolicitud?id=${id}`;
+    await cargarArchivosSolicitud(id, 'lista_archivos_preview_solicitud', false);
 
     const modal = document.getElementById('modalPreviewSolicitud');
     modal.classList.remove('hidden');
@@ -734,6 +749,7 @@ function cerrarModalPreviewSolicitud() {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
     document.getElementById('iframePDFSolicitud').src = '';
+    renderizarArchivosSolicitud([], 'lista_archivos_preview_solicitud', false);
 }
 
 async function editarSolicitud(id) {
@@ -1196,8 +1212,92 @@ document.getElementById('btnAgregarProductoManual').addEventListener('click', ag
 
 // ─── ADJUNTOS SOLICITUD ────────────────────────────────────────────────
 
-function renderizarArchivosSolicitud(archivos) {
-    const contenedor = document.getElementById('lista_archivos_solicitud');
+const extensionesArchivosSolicitud = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.pdf', '.xls', '.xlsx', '.doc', '.docx'];
+const maxBytesArchivoSolicitud = 1 * 1024 * 1024;
+
+function obtenerExtensionArchivo(nombreArchivo) {
+    const ultimoPunto = nombreArchivo.lastIndexOf('.');
+    return ultimoPunto >= 0 ? nombreArchivo.substring(ultimoPunto).toLowerCase() : '';
+}
+
+function validarArchivosSolicitud(files) {
+    const archivos = Array.from(files || []);
+
+    for (const archivo of archivos) {
+        if (archivo.size > maxBytesArchivoSolicitud) {
+            return `'${archivo.name}' supera 1MB`;
+        }
+
+        if (!extensionesArchivosSolicitud.includes(obtenerExtensionArchivo(archivo.name))) {
+            return `'${archivo.name}' no tiene un formato permitido`;
+        }
+    }
+
+    return null;
+}
+
+function actualizarArchivosPendientes() {
+    const input = document.getElementById('archivos_solicitud');
+    const contenedor = document.getElementById('archivos_pendientes');
+    const texto = document.getElementById('archivos_pendientes_texto');
+
+    if (!input || !contenedor || !texto) return;
+
+    const archivos = Array.from(input.files || []);
+    if (archivos.length === 0) {
+        texto.textContent = '';
+        contenedor.classList.add('hidden');
+        return;
+    }
+
+    const errorValidacion = validarArchivosSolicitud(archivos);
+    if (errorValidacion) {
+        alertaPersonalizada('warning', errorValidacion);
+        input.value = '';
+        texto.textContent = '';
+        contenedor.classList.add('hidden');
+        return;
+    }
+
+    const nombres = archivos.map(archivo => archivo.name).join(', ');
+    texto.textContent = `${archivos.length} archivo(s) seleccionado(s): ${nombres}`;
+    contenedor.classList.remove('hidden');
+}
+
+function inicializarAdjuntosSolicitud() {
+    const input = document.getElementById('archivos_solicitud');
+    const dropzone = document.getElementById('dropzoneLabel');
+    if (!input) return;
+
+    input.addEventListener('change', actualizarArchivosPendientes);
+
+    if (!dropzone) return;
+
+    ['dragenter', 'dragover'].forEach(evento => {
+        dropzone.addEventListener(evento, e => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.add('border-blue-400', 'bg-gray-600');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(evento => {
+        dropzone.addEventListener(evento, e => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropzone.classList.remove('border-blue-400', 'bg-gray-600');
+        });
+    });
+
+    dropzone.addEventListener('drop', e => {
+        if (!e.dataTransfer?.files?.length) return;
+        input.files = e.dataTransfer.files;
+        actualizarArchivosPendientes();
+    });
+}
+
+function renderizarArchivosSolicitud(archivos, idContenedor = 'lista_archivos_solicitud', permitirEliminar = true) {
+    const contenedor = document.getElementById(idContenedor);
     if (!contenedor) return;
 
     if (!Array.isArray(archivos) || archivos.length === 0) {
@@ -1213,25 +1313,27 @@ function renderizarArchivosSolicitud(archivos) {
                 </a>
                 <span class="text-gray-500 text-xs"> — ${a.fecha || ''} (${a.tamanoKb} KB)</span>
             </div>
-            <button type="button" onclick="eliminarArchivoSolicitud('${encodeURIComponent(a.archivo || '')}')"
-                    class="text-red-400 hover:text-red-300 flex-shrink-0" title="Eliminar">
-                <i class="fas fa-trash text-xs"></i>
-            </button>
+            ${permitirEliminar ? `
+                <button type="button" onclick="eliminarArchivoSolicitud('${encodeURIComponent(a.archivo || '')}')"
+                        class="text-red-400 hover:text-red-300 flex-shrink-0" title="Eliminar">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            ` : ''}
         </div>
     `).join('');
 }
 
-async function cargarArchivosSolicitud(idSolicitud) {
-    if (!idSolicitud) { renderizarArchivosSolicitud([]); return; }
+async function cargarArchivosSolicitud(idSolicitud, idContenedor = 'lista_archivos_solicitud', permitirEliminar = true) {
+    if (!idSolicitud) { renderizarArchivosSolicitud([], idContenedor, permitirEliminar); return; }
     try {
         const resp = await fetch(`/Solicitudes/ObtenerArchivosSolicitud?idSolicitud=${idSolicitud}`);
         const data = await resp.json();
-        renderizarArchivosSolicitud(Array.isArray(data) ? data : []);
-    } catch { renderizarArchivosSolicitud([]); }
+        renderizarArchivosSolicitud(Array.isArray(data) ? data : [], idContenedor, permitirEliminar);
+    } catch { renderizarArchivosSolicitud([], idContenedor, permitirEliminar); }
 }
 
-async function subirArchivosSolicitud() {
-    let idSolicitud = parseInt(document.getElementById('id').value || '0');
+async function subirArchivosSolicitud(idSolicitudParametro = null, omitirAlertaExito = false) {
+    let idSolicitud = parseInt(idSolicitudParametro || document.getElementById('id').value || '0');
 
     // Si es nueva, guardar primero
     if (!idSolicitud) {
@@ -1252,16 +1354,23 @@ async function subirArchivosSolicitud() {
     try {
         const resp = await fetch('/Solicitudes/SubirArchivosSolicitud', { method: 'POST', body: formData });
         const result = await resp.json();
-        alertaPersonalizada(result.tipo, result.mensaje);
+        if (!omitirAlertaExito || result.tipo !== 'success') {
+            alertaPersonalizada(result.tipo, result.mensaje);
+        }
         if (result.tipo === 'success') {
             input.value = '';
-            document.getElementById('archivos_pendientes').classList.add('hidden');
+            actualizarArchivosPendientes();
             await cargarArchivosSolicitud(idSolicitud);
+            return true;
         }
+        return false;
     } catch {
         alertaPersonalizada('error', 'Error al subir archivos');
+        return false;
     }
 }
+
+inicializarAdjuntosSolicitud();
 
 async function eliminarArchivoSolicitud(archivoCodificado) {
     const idSolicitud = parseInt(document.getElementById('id').value || '0');
