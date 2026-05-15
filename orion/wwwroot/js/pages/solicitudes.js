@@ -716,9 +716,10 @@ frm.addEventListener("submit", function (e) {
 });
 
 
-function vistaPreviaSolicitud(id) {
+async function vistaPreviaSolicitud(id) {
     const iframe = document.getElementById('iframePDFSolicitud');
     iframe.src = `/Solicitudes/VistaPreviaPdfSolicitud?id=${id}`;
+    await cargarArchivosSolicitud(id, 'lista_archivos_preview_solicitud', false);
 
     const modal = document.getElementById('modalPreviewSolicitud');
     modal.classList.remove('hidden');
@@ -748,6 +749,7 @@ function cerrarModalPreviewSolicitud() {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
     document.getElementById('iframePDFSolicitud').src = '';
+    renderizarArchivosSolicitud([], 'lista_archivos_preview_solicitud', false);
 }
 
 async function editarSolicitud(id) {
@@ -1294,8 +1296,8 @@ function inicializarAdjuntosSolicitud() {
     });
 }
 
-function renderizarArchivosSolicitud(archivos) {
-    const contenedor = document.getElementById('lista_archivos_solicitud');
+function renderizarArchivosSolicitud(archivos, idContenedor = 'lista_archivos_solicitud', permitirEliminar = true) {
+    const contenedor = document.getElementById(idContenedor);
     if (!contenedor) return;
 
     if (!Array.isArray(archivos) || archivos.length === 0) {
@@ -1311,21 +1313,23 @@ function renderizarArchivosSolicitud(archivos) {
                 </a>
                 <span class="text-gray-500 text-xs"> — ${a.fecha || ''} (${a.tamanoKb} KB)</span>
             </div>
-            <button type="button" onclick="eliminarArchivoSolicitud('${encodeURIComponent(a.archivo || '')}')"
-                    class="text-red-400 hover:text-red-300 flex-shrink-0" title="Eliminar">
-                <i class="fas fa-trash text-xs"></i>
-            </button>
+            ${permitirEliminar ? `
+                <button type="button" onclick="eliminarArchivoSolicitud('${encodeURIComponent(a.archivo || '')}')"
+                        class="text-red-400 hover:text-red-300 flex-shrink-0" title="Eliminar">
+                    <i class="fas fa-trash text-xs"></i>
+                </button>
+            ` : ''}
         </div>
     `).join('');
 }
 
-async function cargarArchivosSolicitud(idSolicitud) {
-    if (!idSolicitud) { renderizarArchivosSolicitud([]); return; }
+async function cargarArchivosSolicitud(idSolicitud, idContenedor = 'lista_archivos_solicitud', permitirEliminar = true) {
+    if (!idSolicitud) { renderizarArchivosSolicitud([], idContenedor, permitirEliminar); return; }
     try {
         const resp = await fetch(`/Solicitudes/ObtenerArchivosSolicitud?idSolicitud=${idSolicitud}`);
         const data = await resp.json();
-        renderizarArchivosSolicitud(Array.isArray(data) ? data : []);
-    } catch { renderizarArchivosSolicitud([]); }
+        renderizarArchivosSolicitud(Array.isArray(data) ? data : [], idContenedor, permitirEliminar);
+    } catch { renderizarArchivosSolicitud([], idContenedor, permitirEliminar); }
 }
 
 async function subirArchivosSolicitud(idSolicitudParametro = null, omitirAlertaExito = false) {
