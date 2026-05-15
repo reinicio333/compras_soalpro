@@ -194,6 +194,7 @@ function agregarProducto() {
                        class="uppercase bg-gray-800 border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
                        placeholder="Características" >
             </div>
+            
             <div class="col-span-1">
                 <input type="date"
                        name="productos[${contadorProductos}][frequerimiento_item]"
@@ -206,6 +207,17 @@ function agregarProducto() {
                        name="productos[${contadorProductos}][frequerimiento_dias]"
                        class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
                        placeholder="Auto" readonly>
+            <!-- Empresa -->
+            <div class="col-span-1">
+                <input type="text"
+                       id="empresa_display_${contadorProductos}"
+                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                       placeholder="Empresa"
+                       readonly>
+                <input type="hidden"
+                       name="productos[${contadorProductos}][empresa]"
+                       id="empresa_${contadorProductos}">
+            </div>
             <!-- Último Precio -->
             <div class="col-span-1">
                 <input type="text"
@@ -311,6 +323,8 @@ function initializeSelectizeForProduct(index) {
                     $(`#ultimoPrecio_display_${index}`).val('');
                     $(`#fultimaCompra_${index}`).val('');
                     $(`#fultimaCompra_display_${index}`).val('');
+                    $(`#empresa_${index}`).val('');
+                    $(`#empresa_display_${index}`).val('');
 
                     const selectizeProveedor = $(`.select-proveedor-${index}`)[0].selectize;
                     selectizeProveedor.clear(true);
@@ -328,6 +342,8 @@ function initializeSelectizeForProduct(index) {
                 $(`#ultimoPrecio_display_${index}`).val('');
                 $(`#fultimaCompra_${index}`).val('');
                 $(`#fultimaCompra_display_${index}`).val('');
+                $(`#empresa_${index}`).val('');
+                $(`#empresa_display_${index}`).val('');
             }
         }
     });
@@ -370,6 +386,9 @@ function initializeSelectizeForProduct(index) {
                             $(`#fultimaCompra_${index}`).val(data.fultimaCompra ? data.fultimaCompra.split('T')[0] : '');
                             $(`#fultimaCompra_display_${index}`).val(data.fultimaCompra ? new Date(data.fultimaCompra).toLocaleDateString('es-ES') : 'Sin datos');
                             $(`#frequerimiento_dias_${index}`).val(data.leadTime || '');
+                            $(`#empresa_${index}`).val(item.empresa || '');
+                            $(`#empresa_display_${index}`).val(item.empresa || '');
+
 
                         }
                     });
@@ -500,6 +519,8 @@ function initializeSelectizeForProductEdit(index, detalle) {
                             $(`#fultimaCompra_display_${index}`).val(data.fultimaCompra ? new Date(data.fultimaCompra).toLocaleDateString('es-ES') : 'Sin datos');
                             $(`#frequerimiento_dias_${index}`).val(data.leadTime || '');
                             $(`#frequerimiento_dias_${index}`).closest('div').find('input[readonly]').val(data.leadTime || '');
+                            $(`#empresa_${index}`).val(item.empresa || '');
+                            $(`#empresa_display_${index}`).val(item.empresa || '');
 
                         }
                     });
@@ -524,8 +545,11 @@ function initializeSelectizeForProductEdit(index, detalle) {
             selectizeProveedor.addOption(proveedores);
             selectizeProveedor.setValue(detalle.proveedor);
             const proveedorSeleccionado = proveedores.find(p => p.nomProveedor === detalle.proveedor);
+           
             if (proveedorSeleccionado) {
                 $(`#codProveedor_${index}`).val(proveedorSeleccionado.codProveedor);
+                $(`#empresa_${index}`).val(proveedorSeleccionado.empresa || '');
+                $(`#empresa_display_${index}`).val(proveedorSeleccionado.empresa || '');
 
                 // Cargar precio y fecha al editar
                 $.ajax({
@@ -603,6 +627,10 @@ btnNuevaSolicitud.addEventListener("click", function () {
     document.querySelector("#productosLista").innerHTML = '';
     contadorProductos = 0;
 
+    // Limpiar lista de archivos
+    renderizarArchivosSolicitud([]);
+    document.getElementById('archivos_pendientes').classList.add('hidden');
+    document.getElementById('archivos_solicitud').value = '';
 
     const modal = new Modal(modalSolicitud);
     modal.show();
@@ -708,219 +736,170 @@ function cerrarModalPreviewSolicitud() {
     document.getElementById('iframePDFSolicitud').src = '';
 }
 
-function editarSolicitud(id) {
-    fetch('/Solicitudes/GetSolicitud?id=' + id)
-        .then(resp => resp.json())
-        .then(data => {
-            if (data.tipo === 'error') {
-                alertaPersonalizada('error', data.mensaje);
-                return;
-            }
+async function editarSolicitud(id) {
+    try {
+        const resp = await fetch('/Solicitudes/GetSolicitud?id=' + id);
+        const data = await resp.json();
 
-            title.textContent = `MODIFICAR SOLICITUD DE COMPRA #${data.solicitud.id}`;
+        if (data.tipo === 'error') {
+            alertaPersonalizada('error', data.mensaje);
+            return;
+        }
 
-            frm.id.value = data.solicitud.id;
+        title.textContent = `MODIFICAR SOLICITUD DE COMPRA #${data.solicitud.id}`;
+        frm.id.value = data.solicitud.id;
 
-            const fecha = new Date(data.solicitud.fecha);
-            frm.fecha.value = fecha.toISOString().split('T')[0];
+        const fecha = new Date(data.solicitud.fecha);
+        frm.fecha.value = fecha.toISOString().split('T')[0];
 
-            const tieneProductosEnUso = data.detalles.some(d => d.estado !== "Creado");
+        const tieneProductosEnUso = data.detalles.some(d => d.estado !== "Creado");
 
-            const freq = data.solicitud.frequerimiento
-                ? new Date(data.solicitud.frequerimiento)
-                : new Date();
-            frm.frequerimiento.value = new Date(freq.getTime() - (freq.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+        const freq = data.solicitud.frequerimiento
+            ? new Date(data.solicitud.frequerimiento)
+            : new Date();
+        frm.frequerimiento.value = new Date(freq.getTime() - (freq.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
 
-            if (tieneProductosEnUso) {
-                frm.frequerimiento.setAttribute('readonly', true);
-                frm.frequerimiento.classList.add('bg-gray-600', 'cursor-not-allowed');
-                frm.frequerimiento.title = "No se puede modificar porque hay productos en órdenes de compra";
-            } else {
-                frm.frequerimiento.removeAttribute('readonly');
-                frm.frequerimiento.classList.remove('bg-gray-600', 'cursor-not-allowed');
-                frm.frequerimiento.title = "";
-            }
+        if (tieneProductosEnUso) {
+            frm.frequerimiento.setAttribute('readonly', true);
+            frm.frequerimiento.classList.add('bg-gray-600', 'cursor-not-allowed');
+            frm.frequerimiento.title = "No se puede modificar porque hay productos en órdenes de compra";
+        } else {
+            frm.frequerimiento.removeAttribute('readonly');
+            frm.frequerimiento.classList.remove('bg-gray-600', 'cursor-not-allowed');
+            frm.frequerimiento.title = "";
+        }
 
-            frm.referencia.value = data.solicitud.referencia || '';
-            frm.solicitante.value = data.solicitud.solicitante || '';
+        frm.referencia.value = data.solicitud.referencia || '';
+        frm.solicitante.value = data.solicitud.solicitante || '';
 
-            destruirSelectizesPrevios();
-            document.querySelector("#productosLista").innerHTML = '';
-            contadorProductos = 0;
+        destruirSelectizesPrevios();
+        document.querySelector("#productosLista").innerHTML = '';
+        contadorProductos = 0;
 
-            data.detalles.forEach(detalle => {
-                contadorProductos++;
-                const esPendiente = detalle.estado !== "Creado";
-                const esManual = detalle.codigo === 'MANUAL';
-                const disabledClass = esPendiente ? 'pointer-events-none opacity-60' : '';
-                const readonlyAttr = esPendiente ? 'disabled' : '';
-                const tooltipPendiente = esPendiente ? 'title="Producto en uso - No se puede modificar"' : '';
+        data.detalles.forEach(detalle => {
+            contadorProductos++;
+            const esPendiente = detalle.estado !== "Creado";
+            const esManual = detalle.codigo === 'MANUAL';
+            const disabledClass = esPendiente ? 'pointer-events-none opacity-60' : '';
+            const readonlyAttr = esPendiente ? 'disabled' : '';
+            const tooltipPendiente = esPendiente ? 'title="Producto en uso - No se puede modificar"' : '';
 
-                const productoHTML = `
-                <div class="producto-item bg-gray-700 rounded-lg p-3 border ${esPendiente ? 'border-orange-500' : esManual ? 'border-purple-600' : 'border-gray-600'}" data-index="${contadorProductos}" ${esManual ? 'data-manual="true"' : ''}>
-                    ${esPendiente ? `<div class="mb-2 text-xs text-orange-400 font-semibold"><i class="fas fa-lock mr-1"></i>${detalle.estado} - Orden de Compra ${detalle.numeroOrden ? '#' + detalle.numeroOrden : ''}</div>` : ''}
-                    <div class="grid grid-cols-13 gap-2 items-center">
-
-                        <!-- # -->
-                        <div class="col-span-1 text-center">
-                            <span class="text-xs font-semibold ${esPendiente ? 'text-orange-400' : esManual ? 'text-purple-400' : 'text-green-400'}">
-                                <i class="fas ${esManual ? 'fa-pencil-alt' : 'fa-box'} mr-1"></i>#${contadorProductos}
-                            </span>
-                        </div>
-
-                        <!-- Producto -->
-                        <div class="col-span-2 ${disabledClass}" ${tooltipPendiente}>
-                            ${esManual ? `
-                                <input type="text"
-                                       name="productos[${contadorProductos}][descripcion]"
-                                       id="descripcion_${contadorProductos}"
-                                       class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
-                                       value="${detalle.descripcion || ''}"
-                                       ${esPendiente ? 'readonly' : ''} required>
-                                <input type="hidden" name="productos[${contadorProductos}][codigo]" id="codigo_${contadorProductos}" value="MANUAL">
-                                <input type="hidden" name="productos[${contadorProductos}][unidad]" id="unidad_${contadorProductos}" value="${detalle.unidad || ''}">
-                            ` : `
-                                <select class="select-producto-${contadorProductos}" id="select_producto_${contadorProductos}" ${readonlyAttr} required></select>
-                                <input type="hidden" name="productos[${contadorProductos}][codigo]" id="codigo_${contadorProductos}" value="${detalle.codigo}">
-                                <input type="hidden" name="productos[${contadorProductos}][descripcion]" id="descripcion_${contadorProductos}" value="${detalle.descripcion}">
-                                <input type="hidden" name="productos[${contadorProductos}][unidad]" id="unidad_${contadorProductos}" value="${detalle.unidad}">
-                            `}
-                        </div>
-
-                        <!-- Proveedor -->
-                        <div class="col-span-2 ${disabledClass}" ${tooltipPendiente}>
-                            ${esManual ? `
-                                <input type="text"
-                                       name="productos[${contadorProductos}][proveedor]"
-                                       class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
-                                       value="${detalle.proveedor || ''}"
-                                       ${esPendiente ? 'readonly' : ''}
-                                       placeholder="Proveedor">
-                            ` : `
-                                <select class="select-proveedor-${contadorProductos}" name="productos[${contadorProductos}][proveedor]" ${readonlyAttr} required></select>
-                            `}
-                        </div>
-
-                        <input type="hidden"
-                               name="productos[${contadorProductos}][codProveedor]"
-                               id="codProveedor_${contadorProductos}"
-                               value="${detalle.codProveedor || ''}">
-
-                        <!-- Características -->
-                        <div class="col-span-1 ${esPendiente ? disabledClass : ''}" ${esPendiente ? tooltipPendiente : ''}>
-                            <input type="text" name="productos[${contadorProductos}][caracteristicas]"
-                                   class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
-                                   value="${detalle.caracteristicas || ''}"
-                                   placeholder="Opcional"
-                                   ${esPendiente ? 'readonly' : ''}>
-                        </div>
-                        <!-- Fecha Requerimiento Item -->
-                        <div class="col-span-1 ${esPendiente ? disabledClass : ''}">
-                            <input type="date"
-                                   name="productos[${contadorProductos}][frequerimiento_item]"
-                                   id="frequerimiento_item_${contadorProductos}"
-                                   class="${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2"
-                                   value="${detalle.frequerimiento ? detalle.frequerimiento.split('T')[0] : (data.solicitud.frequerimiento ? data.solicitud.frequerimiento.split('T')[0] : '')}"
-                                   ${esPendiente ? 'readonly' : ''}>
-                        </div>
-
-                        <!-- Req. Días -->
-                        <div class="col-span-1">
-                            <input type="text"
-                                   class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
-                                   value="${esManual ? 'N/A' : (detalle.frequerimientoDias || '')}" readonly>
-                            <input type="hidden"
-                                   id="frequerimiento_dias_${contadorProductos}"
-                                   name="productos[${contadorProductos}][frequerimiento_dias]"
-                                   value="${esManual ? '' : (detalle.frequerimientoDias || '')}">
-                        </div>
-
-                        <!-- Último Precio -->
-                        <div class="col-span-1">
-                            <input type="text"
-                                   id="ultimoPrecio_display_${contadorProductos}"
-                                   class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
-                                   value="${esManual ? 'N/A' : ''}"
-                                   placeholder="${esManual ? '' : 'Sin precio'}"
-                                   readonly>
-                            <input type="hidden"
-                                   id="ultimoPrecio_${contadorProductos}"
-                                   name="productos[${contadorProductos}][ultimoPrecio]"
-                                   value="${esManual ? '0' : ''}">
-                        </div>
-
-                        <!-- Última Compra -->
-                        <div class="col-span-1">
-                            <input type="text"
-                                   id="fultimaCompra_display_${contadorProductos}"
-                                   class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
-                                   value="${esManual ? 'N/A' : ''}"
-                                   placeholder="${esManual ? '' : 'Sin fecha'}"
-                                   readonly>
-                            <input type="hidden"
-                                   id="fultimaCompra_${contadorProductos}"
-                                   name="productos[${contadorProductos}][fultimaCompra]"
-                                   value="">
-                        </div>
-
-                        <!-- Unidad -->
-                        <div class="col-span-1 ${disabledClass}" ${tooltipPendiente}>
-                            ${esManual ? `
-                                <input type="text"
-                                       id="unidad_display_${contadorProductos}"
-                                       name="productos[${contadorProductos}][unidad_manual]"
-                                       class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
-                                       value="${detalle.unidad || ''}"
-                                       ${esPendiente ? 'readonly' : ''}
-                                       oninput="document.getElementById('unidad_${contadorProductos}').value = this.value"
-                                       placeholder="Unidad" required>
-                            ` : `
-                                <input type="text" id="unidad_display_${contadorProductos}"
-                                       class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
-                                       value="${detalle.unidad || ''}" readonly>
-                            `}
-                        </div>
-
-                        <!-- Cantidad -->
-                        <div class="col-span-1 ${esPendiente ? disabledClass : ''}" ${esPendiente ? tooltipPendiente : ''}>
-                            <input type="number" step="0.01" name="productos[${contadorProductos}][cantidad]"
-                                   class="${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 placeholder-gray-400"
-                                   value="${detalle.cantidad}"
-                                    min="0.01"
-                                    ${esPendiente ? 'readonly' : ''} required>
-                        </div>
-
-                        <!-- Eliminar -->
-                        <div class="col-span-1 text-center">
-                            ${esPendiente ?
-                        `<i class="fas fa-lock text-orange-400" title="No se puede eliminar - Producto en uso"></i>` :
-                        `<button type="button" onclick="eliminarProducto(${contadorProductos})"
-                                        class="text-red-400 hover:text-red-300 transition-colors p-1">
-                                    <i class="fas fa-times-circle text-lg"></i>
-                                </button>`
-                    }
-                        </div>
+            const productoHTML = `
+            <div class="producto-item bg-gray-700 rounded-lg p-3 border ${esPendiente ? 'border-orange-500' : esManual ? 'border-purple-600' : 'border-gray-600'}" data-index="${contadorProductos}" ${esManual ? 'data-manual="true"' : ''}>
+                ${esPendiente ? `<div class="mb-2 text-xs text-orange-400 font-semibold"><i class="fas fa-lock mr-1"></i>${detalle.estado} - Orden de Compra ${detalle.numeroOrden ? '#' + detalle.numeroOrden : ''}</div>` : ''}
+                <div class="grid grid-cols-13 gap-2 items-center">
+                    <div class="col-span-1 text-center">
+                        <span class="text-xs font-semibold ${esPendiente ? 'text-orange-400' : esManual ? 'text-purple-400' : 'text-green-400'}">
+                            <i class="fas ${esManual ? 'fa-pencil-alt' : 'fa-box'} mr-1"></i>#${contadorProductos}
+                        </span>
                     </div>
-                </div>`;
-
-                productosContainer.insertAdjacentHTML('beforeend', productoHTML);
-
-                if (esManual) {
-                    // No inicializar selectize para productos manuales (sea pendiente o no)
-                } else if (esPendiente) {
-                    initializeSelectizeForProductEditReadonly(contadorProductos, detalle);
-                } else {
-                    initializeSelectizeForProductEdit(contadorProductos, detalle);
+                    <div class="col-span-2 ${disabledClass}" ${tooltipPendiente}>
+                        ${esManual ? `
+                            <input type="text" name="productos[${contadorProductos}][descripcion]" id="descripcion_${contadorProductos}"
+                                   class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
+                                   value="${detalle.descripcion || ''}" ${esPendiente ? 'readonly' : ''} required>
+                            <input type="hidden" name="productos[${contadorProductos}][codigo]" id="codigo_${contadorProductos}" value="MANUAL">
+                            <input type="hidden" name="productos[${contadorProductos}][unidad]" id="unidad_${contadorProductos}" value="${detalle.unidad || ''}">
+                        ` : `
+                            <select class="select-producto-${contadorProductos}" id="select_producto_${contadorProductos}" ${readonlyAttr} required></select>
+                            <input type="hidden" name="productos[${contadorProductos}][codigo]" id="codigo_${contadorProductos}" value="${detalle.codigo}">
+                            <input type="hidden" name="productos[${contadorProductos}][descripcion]" id="descripcion_${contadorProductos}" value="${detalle.descripcion}">
+                            <input type="hidden" name="productos[${contadorProductos}][unidad]" id="unidad_${contadorProductos}" value="${detalle.unidad}">
+                        `}
+                    </div>
+                    <div class="col-span-2 ${disabledClass}" ${tooltipPendiente}>
+                        ${esManual ? `
+                            <input type="text" name="productos[${contadorProductos}][proveedor]"
+                                   class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
+                                   value="${detalle.proveedor || ''}" ${esPendiente ? 'readonly' : ''} placeholder="Proveedor">
+                        ` : `
+                            <select class="select-proveedor-${contadorProductos}" name="productos[${contadorProductos}][proveedor]" ${readonlyAttr} required></select>
+                        `}
+                    </div>
+                    <input type="hidden" name="productos[${contadorProductos}][codProveedor]" id="codProveedor_${contadorProductos}" value="${detalle.codProveedor || ''}">
+                    <div class="col-span-1 ${esPendiente ? disabledClass : ''}" ${esPendiente ? tooltipPendiente : ''}>
+                        <input type="text" name="productos[${contadorProductos}][caracteristicas]"
+                               class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
+                               value="${detalle.caracteristicas || ''}" placeholder="Opcional" ${esPendiente ? 'readonly' : ''}>
+                    </div>
+                    <div class="col-span-1 ${esPendiente ? disabledClass : ''}">
+                        <input type="date" name="productos[${contadorProductos}][frequerimiento_item]" id="frequerimiento_item_${contadorProductos}"
+                               class="${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2"
+                               value="${detalle.frequerimiento ? detalle.frequerimiento.split('T')[0] : (data.solicitud.frequerimiento ? data.solicitud.frequerimiento.split('T')[0] : '')}"
+                               ${esPendiente ? 'readonly' : ''}>
+                    </div>
+                    <div class="col-span-1">
+                        <input type="text" class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                               value="${esManual ? 'N/A' : (detalle.frequerimientoDias || '')}" readonly>
+                        <input type="hidden" id="frequerimiento_dias_${contadorProductos}" name="productos[${contadorProductos}][frequerimiento_dias]" value="${esManual ? '' : (detalle.frequerimientoDias || '')}">
+                    </div>
+                    <div class="col-span-1">
+                        <input type="text" id="empresa_display_${contadorProductos}"
+                               class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                               value="${esManual ? 'N/A' : (detalle.empresa || '')}" placeholder="Empresa" readonly>
+                        <input type="hidden" id="empresa_${contadorProductos}" name="productos[${contadorProductos}][empresa]" value="${esManual ? '' : (detalle.empresa || '')}">
+                    </div>
+                    <div class="col-span-1">
+                        <input type="text" id="ultimoPrecio_display_${contadorProductos}"
+                               class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                               value="${esManual ? 'N/A' : ''}" placeholder="${esManual ? '' : 'Sin precio'}" readonly>
+                        <input type="hidden" id="ultimoPrecio_${contadorProductos}" name="productos[${contadorProductos}][ultimoPrecio]" value="${esManual ? '0' : ''}">
+                    </div>
+                    <div class="col-span-1">
+                        <input type="text" id="fultimaCompra_display_${contadorProductos}"
+                               class="bg-gray-600 border border-gray-500 ${esManual ? 'text-gray-500' : 'text-gray-300'} text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                               value="${esManual ? 'N/A' : ''}" placeholder="${esManual ? '' : 'Sin fecha'}" readonly>
+                        <input type="hidden" id="fultimaCompra_${contadorProductos}" name="productos[${contadorProductos}][fultimaCompra]" value="">
+                    </div>
+                    <div class="col-span-1 ${disabledClass}" ${tooltipPendiente}>
+                        ${esManual ? `
+                            <input type="text" id="unidad_display_${contadorProductos}" name="productos[${contadorProductos}][unidad_manual]"
+                                   class="uppercase ${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
+                                   value="${detalle.unidad || ''}" ${esPendiente ? 'readonly' : ''}
+                                   oninput="document.getElementById('unidad_${contadorProductos}').value = this.value"
+                                   placeholder="Unidad" required>
+                        ` : `
+                            <input type="text" id="unidad_display_${contadorProductos}"
+                                   class="bg-gray-600 border border-gray-500 text-gray-300 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                                   value="${detalle.unidad || ''}" readonly>
+                        `}
+                    </div>
+                    <div class="col-span-1 ${esPendiente ? disabledClass : ''}" ${esPendiente ? tooltipPendiente : ''}>
+                        <input type="number" step="0.01" name="productos[${contadorProductos}][cantidad]"
+                               class="${esPendiente ? 'bg-gray-600 cursor-not-allowed' : 'bg-gray-800'} border border-gray-600 text-white text-xs rounded-lg block w-full p-2 placeholder-gray-400"
+                               value="${detalle.cantidad}" min="0.01" ${esPendiente ? 'readonly' : ''} required>
+                    </div>
+                    <div class="col-span-1 text-center">
+                        ${esPendiente ?
+                    `<i class="fas fa-lock text-orange-400" title="No se puede eliminar - Producto en uso"></i>` :
+                    `<button type="button" onclick="eliminarProducto(${contadorProductos})"
+                                    class="text-red-400 hover:text-red-300 transition-colors p-1">
+                                <i class="fas fa-times-circle text-lg"></i>
+                            </button>`
                 }
-            });
+                    </div>
+                </div>
+            </div>`;
 
-            const modal = new Modal(modalSolicitud);
-            modal.show();
-        })
-        .catch(err => {
-            console.error('Error:', err);
-            alertaPersonalizada('error', 'Error al cargar la solicitud');
+            productosContainer.insertAdjacentHTML('beforeend', productoHTML);
+
+            if (esManual) {
+                // no selectize
+            } else if (esPendiente) {
+                initializeSelectizeForProductEditReadonly(contadorProductos, detalle);
+            } else {
+                initializeSelectizeForProductEdit(contadorProductos, detalle);
+            }
         });
+
+        const modal = new Modal(modalSolicitud);
+        await cargarArchivosSolicitud(data.solicitud.id);
+        modal.show();
+
+    } catch (err) {
+        console.error('Error:', err);
+        alertaPersonalizada('error', 'Error al cargar la solicitud');
+    }
 }
 function eliminarSolicitud(id, botonEliminar = null) {
     Swal.fire({
@@ -1149,7 +1128,15 @@ function agregarProductoManual() {
                        name="productos[${contadorProductos}][frequerimiento_dias]"
                        value="">
             </div>
-
+            <!-- Empresa — N/A para manual -->
+            <div class="col-span-1">
+                <input type="text"
+                       class="bg-gray-600 border border-gray-500 text-gray-500 text-xs rounded-lg block w-full p-2 cursor-not-allowed"
+                       value="N/A" readonly>
+                <input type="hidden"
+                       name="productos[${contadorProductos}][empresa]"
+                       value="">
+            </div>
             <!-- Último Precio — oculto -->
             <div class="col-span-1">
                 <input type="text"
@@ -1206,3 +1193,100 @@ function agregarProductoManual() {
 }
 
 document.getElementById('btnAgregarProductoManual').addEventListener('click', agregarProductoManual);
+
+// ─── ADJUNTOS SOLICITUD ────────────────────────────────────────────────
+
+function renderizarArchivosSolicitud(archivos) {
+    const contenedor = document.getElementById('lista_archivos_solicitud');
+    if (!contenedor) return;
+
+    if (!Array.isArray(archivos) || archivos.length === 0) {
+        contenedor.innerHTML = '<span class="text-gray-400">Sin archivos adjuntos</span>';
+        return;
+    }
+
+    contenedor.innerHTML = archivos.map(a => `
+        <div class="flex items-center justify-between gap-2">
+            <div class="truncate">
+                <a href="${a.url}" target="_blank" class="text-blue-300 hover:text-blue-200 hover:underline text-xs">
+                    <i class="fas fa-file mr-1"></i>${a.nombre}
+                </a>
+                <span class="text-gray-500 text-xs"> — ${a.fecha || ''} (${a.tamanoKb} KB)</span>
+            </div>
+            <button type="button" onclick="eliminarArchivoSolicitud('${encodeURIComponent(a.archivo || '')}')"
+                    class="text-red-400 hover:text-red-300 flex-shrink-0" title="Eliminar">
+                <i class="fas fa-trash text-xs"></i>
+            </button>
+        </div>
+    `).join('');
+}
+
+async function cargarArchivosSolicitud(idSolicitud) {
+    if (!idSolicitud) { renderizarArchivosSolicitud([]); return; }
+    try {
+        const resp = await fetch(`/Solicitudes/ObtenerArchivosSolicitud?idSolicitud=${idSolicitud}`);
+        const data = await resp.json();
+        renderizarArchivosSolicitud(Array.isArray(data) ? data : []);
+    } catch { renderizarArchivosSolicitud([]); }
+}
+
+async function subirArchivosSolicitud() {
+    let idSolicitud = parseInt(document.getElementById('id').value || '0');
+
+    // Si es nueva, guardar primero
+    if (!idSolicitud) {
+        alertaPersonalizada('warning', 'GUARDE LA SOLICITUD PRIMERO ANTES DE ADJUNTAR ARCHIVOS');
+        return;
+    }
+
+    const input = document.getElementById('archivos_solicitud');
+    if (!input?.files?.length) {
+        alertaPersonalizada('warning', 'SELECCIONE AL MENOS UN ARCHIVO');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('idSolicitud', idSolicitud);
+    Array.from(input.files).forEach(f => formData.append('archivos', f));
+
+    try {
+        const resp = await fetch('/Solicitudes/SubirArchivosSolicitud', { method: 'POST', body: formData });
+        const result = await resp.json();
+        alertaPersonalizada(result.tipo, result.mensaje);
+        if (result.tipo === 'success') {
+            input.value = '';
+            document.getElementById('archivos_pendientes').classList.add('hidden');
+            await cargarArchivosSolicitud(idSolicitud);
+        }
+    } catch {
+        alertaPersonalizada('error', 'Error al subir archivos');
+    }
+}
+
+async function eliminarArchivoSolicitud(archivoCodificado) {
+    const idSolicitud = parseInt(document.getElementById('id').value || '0');
+    const archivo = decodeURIComponent(archivoCodificado);
+    if (!idSolicitud || !archivo) return;
+
+    const confirm = await Swal.fire({
+        title: '¿Eliminar adjunto?',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Sí, eliminar',
+        cancelButtonText: 'Cancelar',
+        background: '#1f2937',
+        color: '#ffffff'
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+        const resp = await fetch('/Solicitudes/EliminarArchivoSolicitud', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idSolicitud, archivo })
+        });
+        const result = await resp.json();
+        alertaPersonalizada(result.tipo, result.mensaje);
+        if (result.tipo === 'success') await cargarArchivosSolicitud(idSolicitud);
+    } catch { alertaPersonalizada('error', 'Error al eliminar archivo'); }
+}

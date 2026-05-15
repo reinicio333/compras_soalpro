@@ -236,6 +236,7 @@ namespace orion.Servicios
                     foreach (var producto in datos.Productos)
                     {
                         var total = producto.Cantidad * producto.Precio;
+                       
                         totalGeneral += total;
 
                         table.Cell().Element(CellStyle).AlignMiddle().Text(producto.Codigo ?? "").FontSize(7).FontFamily("Cambria").AlignCenter();
@@ -251,8 +252,6 @@ namespace orion.Servicios
                         table.Cell().Element(CellStyle).AlignMiddle().AlignRight().Text(total.ToString("N2")).FontSize(7).Bold().FontFamily("Cambria");
                     }
 
-                    // Total
-                    
                     table.Cell().ColumnSpan(7); 
 
                     table.Cell()
@@ -295,8 +294,18 @@ namespace orion.Servicios
                 column.Item().Row(r =>
                 {
                     r.AutoItem().AlignMiddle().PaddingRight(15).Text("OBSERVACION: ").FontSize(8).FontFamily("Cambria");
+                    var textoObservacion = datos.Cabecera?.Observacion ?? "";
+
+                    if (!string.IsNullOrWhiteSpace(datos.ProveedorDisplay))
+                    {
+                        var sufijo = $"Proveedor original: {datos.ProveedorDisplay} (Ult. precio y F. ult. compra corresponden a este proveedor)";
+                        textoObservacion = string.IsNullOrWhiteSpace(textoObservacion)
+                            ? sufijo
+                            : $"{textoObservacion} - {sufijo}";
+                    }
+
                     r.RelativeItem().Border(0.6f).MinHeight(18).Padding(3)
-                        .Text(datos.Cabecera?.Observacion ?? "").FontSize(8).FontFamily("Cambria");
+                        .Text(textoObservacion).FontSize(8).FontFamily("Cambria");
                 });
                 column.Item().PaddingTop(8);
 

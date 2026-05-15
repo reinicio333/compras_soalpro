@@ -1,7 +1,10 @@
 ﻿    using System;
     using System.Collections.Generic;
-    using MathNet.Numerics.Distributions;
+using MathNet.Numerics.Distributions;
     using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualStudio.Web.CodeGenerators.Mvc.Templates.Blazor;
+using NPOI.SS.Formula.Functions;
+using static iText.StyledXmlParser.Jsoup.Select.Evaluator;
 
     namespace orion.Models;
 
@@ -30,6 +33,7 @@
         public virtual DbSet<HistorialEstadoOrden> HistorialEstadoOrden { get; set; }
         public virtual DbSet<TipoCambioFecha> TipoCambioFecha { get; set; }
         public virtual DbSet<AreaCorrespondencia> AreasCorrespondencia { get; set; }
+        public virtual DbSet<ProveedoresCompras> ProveedoresCompras { get; set; }
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
@@ -105,6 +109,9 @@
                 .HasMaxLength(300)
                 .IsUnicode(false)
                 .HasColumnName("solicitante");
+            entity.Property(e => e.RutasArchivos)
+                .HasColumnType("nvarchar(max)")
+                .HasColumnName("rutas_archivos");
         });
 
         // Configuración para Detalle Solicitudes
@@ -156,6 +163,10 @@
             entity.Property(e => e.FultimoPrecio).HasColumnName("f_ultimo_precio");
             entity.Property(e => e.Frequerimiento)
                 .HasColumnName("frequerimiento");
+            entity.Property(e => e.Empresa)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("empresa");
         });
 
         // Configuración para Proveedores y Productos
@@ -216,7 +227,59 @@
                 .HasMaxLength(250)
                 .IsUnicode(false)
                 .HasColumnName("nom_cuenta");
+            entity.Property(e => e.Empresa)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("empresa");
             entity.Property(e => e.LeadTime)
+                .HasColumnName("lead_time");
+        });
+
+        modelBuilder.Entity<ProveedoresCompras>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.ToTable("proveedores_compras");
+            entity.Property(e => e.Id).HasColumnName("id");
+            entity.Property(e => e.CodProveedor)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("cod_proveedor");
+            entity.Property(e => e.NomProveedor)
+                .HasMaxLength(300)
+                .IsUnicode(false)
+                .HasColumnName("nom_proveedor");
+            entity.Property(e => e.Telefono)
+                 .HasMaxLength(100)
+                 .IsUnicode(false)
+                 .HasColumnName("telefono");
+            entity.Property(e => e.Telefono2)
+                .HasMaxLength(100)
+                .IsUnicode(false)
+                .HasColumnName("telefono2");
+            entity.Property(e => e.Contacto)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("contacto");
+            
+            entity.Property(e => e.Correo)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("correo");
+            entity.Property(e => e.Cuenta)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("cuenta");
+            entity.Property(e => e.Banco)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("banco");
+            entity.Property(e => e.NomCuenta)
+                .HasMaxLength(250)
+                .IsUnicode(false)
+                .HasColumnName("nom_cuenta");
+            entity.Property(e => e.LeadTime)
+                .HasMaxLength(250)
+                .IsUnicode(false)
                 .HasColumnName("lead_time");
         });
         // Configuración para OrdenCompra
@@ -356,6 +419,11 @@
                 .HasMaxLength(500)
                 .IsUnicode(false)
                 .HasColumnName("observacion_recepcion");
+
+            entity.Property(e => e.ProveedorDisplay)
+                .HasMaxLength(255)
+                .IsUnicode(false)
+                .HasColumnName("proveedor_display");
 
             // Relaciones
             entity.HasOne(e => e.SolicitudPrecio)

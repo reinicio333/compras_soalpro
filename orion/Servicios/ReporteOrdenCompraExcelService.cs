@@ -105,36 +105,37 @@ namespace orion.Servicios
 
             var estadosColumnas = new (int Id, string Nombre)[]
             {
-        (1,  "Pedido"),
-        (2,  "Pre autorización"),
-        (3,  "Aprobación OC"),
-        (4,  "En tránsito extranjero"),
-        (5,  "En aduana"),
-        (6,  "En senasag"),
-        (7,  "En tránsito nacional"),
-        (8,  "Enviado a Proveedor"),
-        (9,  "Recepción almacenes"),
-        (10, "Costeado en SAP"),
-        (11, "Rechazado"),
+                (1,  "Pedido"),
+                (2,  "Pre autorización"),
+                (3,  "Aprobación OC"),
+                (4,  "En tránsito extranjero"),
+                (5,  "En aduana"),
+                (6,  "En senasag"),
+                (7,  "En tránsito nacional"),
+                (8,  "Enviado a Proveedor"),
+                (9,  "Recepción almacenes"),
+                (10, "Costeado en SAP"),
+                (11, "Rechazado"),
             };
 
             string[] columnaBase =
             {
-        "Nº OC",                   // 0  ← merge por grupo
-        "Fecha Creación OC",       // 1
-        "Nº Solicitud",            // 2
-        "Solicitantes",            // 3
-        "Fecha Requerimiento",     // 4
-        "Proveedor Item",          // 5
-        "Nombre Item",             // 6
-        "Codigo Item",             // 7
-        "Cantidad",                // 8
-        "Precio",                  // 9
-        "Tipo",                    // 10
-    };
+                "Nº OC",                   // 0  ← merge por grupo
+                "Fecha Creación OC",       // 1
+                "Nº Solicitud",            // 2
+                "Solicitantes",            // 3
+                "Fecha Requerimiento",     // 4
+                "Proveedor Item",          // 5
+                "Proveedor/Compras",       // 6
+                "Nombre Item",             // 7
+                "Codigo Item",             // 8
+                "Cantidad",                // 9
+                "Precio",                  // 10
+                "Tipo",                    // 11
+            };
 
-            int colBase = columnaBase.Length;               // 11
-            int totalCols = colBase + estadosColumnas.Length; // 11 + 11 = 22
+            int colBase = columnaBase.Length;               
+            int totalCols = colBase + estadosColumnas.Length;
 
             // ── Fila 0: Título ───────────────────────────────────────────
             var rowTitulo = sheet.CreateRow(0);
@@ -200,15 +201,16 @@ namespace orion.Servicios
                     T(3, orden.SolicitantesSolicitudesVinculadas ?? "");
                     T(4, orden.Frequerimiento?.ToString("dd/MM/yyyy") ?? "");
                     T(5, orden.ProveedorItem ?? "");
-                    T(6, orden.NombreItem ?? "");
-                    T(7, orden.CodigoItem ?? "");
+                    T(6, orden.ProveedorDisplay ?? "");
+                    T(7, orden.NombreItem ?? "");
+                    T(8, orden.CodigoItem ?? "");
 
-                    if (orden.CantidadItem.HasValue) N(8, Convert.ToDouble(orden.CantidadItem.Value));
-                    else T(8, "");
-                    if (orden.PrecioItem.HasValue) N(9, Convert.ToDouble(orden.PrecioItem.Value));
+                    if (orden.CantidadItem.HasValue) N(9, Convert.ToDouble(orden.CantidadItem.Value));
                     else T(9, "");
+                    if (orden.PrecioItem.HasValue) N(10, Convert.ToDouble(orden.PrecioItem.Value));
+                    else T(10, "");
 
-                    T(10, orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
+                    T(11, orden.EsImportacion ? "IMPORTACION" : "NACIONAL");
 
                     // Columnas de estado: solo en primera fila del grupo
                     if (itemIdx == 0)

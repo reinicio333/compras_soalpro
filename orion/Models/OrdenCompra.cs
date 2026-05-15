@@ -39,6 +39,7 @@ namespace orion.Models
         public string? RutasArchivos { get; set; }
         public string? RecepcionTipo { get; set; }
         public string? ObservacionRecepcion { get; set; }
+        public string? ProveedorDisplay { get; set; }
 
         // Propiedades de navegación
         public virtual SolicitudPrecio? SolicitudPrecio { get; set; }

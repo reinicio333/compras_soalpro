@@ -30,6 +30,7 @@ namespace orion.Models
         public decimal UltimoPrecio { get; set; }
         public DateTime? FultimoPrecio { get; set; }
         public DateTime? Frequerimiento { get; set; }
+        public string? Empresa { get; set; }
 
     }
 }

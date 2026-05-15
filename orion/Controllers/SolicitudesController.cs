@@ -142,7 +142,8 @@ namespace orion.Controllers
                         FultimoPrecio = DateTime.TryParse(Request.Form[$"productos[{index}][fultimaCompra]"], out var fup) ? fup : null,
                         Estado = "Creado",
                         Frequerimiento = DateTime.TryParse(Request.Form[$"productos[{index}][frequerimiento_item]"], out var fri) ? fri : solicitud.Frequerimiento,
-                        Faprobado = null
+                        Faprobado = null,
+                        Empresa = Request.Form[$"productos[{index}][empresa]"]
                     };
 
                     productos.Add(producto);
@@ -325,7 +326,8 @@ namespace orion.Controllers
                             FultimoPrecio = DateTime.TryParse(Request.Form[$"productos[{index}][fultimaCompra]"], out var fup) ? fup : null,
                             Estado = "Creado",
                             Frequerimiento = DateTime.TryParse(Request.Form[$"productos[{index}][frequerimiento_item]"], out var fri) ? fri : solicitud.Frequerimiento,
-                            Faprobado = null
+                            Faprobado = null,
+                            Empresa = Request.Form[$"productos[{index}][empresa]"]
                         };
                         productos.Add(producto);
                     }
@@ -586,7 +588,8 @@ namespace orion.Controllers
                     .Select(g => new
                     {
                         codProveedor = g.Key.CodProveedor,
-                        nomProveedor = g.Max(x => x.NomProveedor)
+                        nomProveedor = g.Max(x => x.NomProveedor),
+                        empresa = g.Max(x => x.Empresa)
                     })
                     .ToListAsync();
 
@@ -620,5 +623,114 @@ namespace orion.Controllers
                 return Json(new { error = true, message = "Error: " + ex.Message });
             }
         }
+        [HttpPost]
+        public async Task<IActionResult> SubirArchivosSolicitud(int idSolicitud, List<IFormFile> archivos)
+        {
+            try
+            {
+                var solicitud = await _context.Solicitudes.FindAsync(idSolicitud);
+                if (solicitud == null)
+                    return Json(new { tipo = "warning", mensaje = "Solicitud no encontrada" });
+
+                if (archivos == null || archivos.Count == 0)
+                    return Json(new { tipo = "warning", mensaje = "Debe seleccionar al menos un archivo" });
+
+                var extensionesPermitidas = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        { ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp", ".pdf", ".xls", ".xlsx", ".doc", ".docx" };
+                const long maxBytes = 1 * 1024 * 1024;
+
+                var carpeta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "solicitudes", idSolicitud.ToString());
+                Directory.CreateDirectory(carpeta);
+
+                var archivosActuales = string.IsNullOrWhiteSpace(solicitud.RutasArchivos)
+                    ? new List<ArchivoSolicitudItemDto>()
+                    : System.Text.Json.JsonSerializer.Deserialize<List<ArchivoSolicitudItemDto>>(solicitud.RutasArchivos) ?? new();
+
+                foreach (var archivo in archivos)
+                {
+                    if (archivo.Length > maxBytes)
+                        return Json(new { tipo = "warning", mensaje = $"'{archivo.FileName}' supera 1MB" });
+
+                    var ext = Path.GetExtension(archivo.FileName);
+                    if (!extensionesPermitidas.Contains(ext))
+                        return Json(new { tipo = "warning", mensaje = $"'{archivo.FileName}' no tiene un formato permitido" });
+
+                    var nombreLimpio = string.Concat(Path.GetFileNameWithoutExtension(archivo.FileName)
+                        .Split(Path.GetInvalidFileNameChars())).Trim();
+                    if (string.IsNullOrWhiteSpace(nombreLimpio)) nombreLimpio = "archivo";
+
+                    var nombreFinal = $"{nombreLimpio}_{DateTime.Now:yyyyMMddHHmmssfff}{ext}";
+                    var ruta = Path.Combine(carpeta, nombreFinal);
+
+                    await using var stream = new FileStream(ruta, FileMode.Create);
+                    await archivo.CopyToAsync(stream);
+
+                    archivosActuales.Add(new ArchivoSolicitudItemDto
+                    {
+                        Nombre = archivo.FileName,
+                        Archivo = nombreFinal,
+                        TamanoKb = Math.Round(archivo.Length / 1024m, 2),
+                        Fecha = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+                    });
+                }
+
+                solicitud.RutasArchivos = System.Text.Json.JsonSerializer.Serialize(archivosActuales);
+                await _context.SaveChangesAsync();
+                return Json(new { tipo = "success", mensaje = "Archivos subidos correctamente" });
+            }
+            catch (Exception ex)
+            {
+                return Json(new { tipo = "error", mensaje = "Error: " + ex.Message });
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ObtenerArchivosSolicitud(int idSolicitud)
+        {
+            var solicitud = await _context.Solicitudes.FindAsync(idSolicitud);
+            if (solicitud == null || string.IsNullOrWhiteSpace(solicitud.RutasArchivos))
+                return Json(new List<object>());
+
+            var archivos = System.Text.Json.JsonSerializer
+                .Deserialize<List<ArchivoSolicitudItemDto>>(solicitud.RutasArchivos) ?? new();
+
+            var resultado = archivos.Select(a => new
+            {
+                nombre = a.Nombre,
+                archivo = a.Archivo,
+                url = $"/uploads/solicitudes/{idSolicitud}/{Uri.EscapeDataString(a.Archivo ?? "")}",
+                tamanoKb = a.TamanoKb,
+                fecha = a.Fecha
+            }).ToList();
+
+            return Json(resultado);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> EliminarArchivoSolicitud([FromBody] EliminarArchivoSolicitudDto datos)
+        {
+            var solicitud = await _context.Solicitudes.FindAsync(datos.IdSolicitud);
+            if (solicitud == null || string.IsNullOrWhiteSpace(solicitud.RutasArchivos))
+                return Json(new { tipo = "warning", mensaje = "Sin adjuntos" });
+
+            var archivos = System.Text.Json.JsonSerializer
+                .Deserialize<List<ArchivoSolicitudItemDto>>(solicitud.RutasArchivos) ?? new();
+
+            var item = archivos.FirstOrDefault(a =>
+                string.Equals(a.Archivo, datos.Archivo, StringComparison.OrdinalIgnoreCase));
+            if (item == null)
+                return Json(new { tipo = "warning", mensaje = "Archivo no encontrado" });
+
+            archivos.Remove(item);
+            solicitud.RutasArchivos = archivos.Count == 0 ? null : System.Text.Json.JsonSerializer.Serialize(archivos);
+            await _context.SaveChangesAsync();
+
+            var rutaLocal = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "solicitudes",
+                datos.IdSolicitud.ToString(), datos.Archivo);
+            if (System.IO.File.Exists(rutaLocal)) System.IO.File.Delete(rutaLocal);
+
+            return Json(new { tipo = "success", mensaje = "Archivo eliminado" });
+        }
+
     }
 }

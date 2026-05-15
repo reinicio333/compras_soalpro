@@ -61,7 +61,8 @@ const gridOptions = {
         },
         {
             headerName: "Proveedor",
-            field: "proveedor"
+            field: "proveedor",
+            valueGetter: params => params.data.proveedorDisplay || params.data.proveedor
         },
         {
             headerName: "Tipo",
@@ -415,6 +416,7 @@ async function abrirModalNuevaOrden() {
 
     limpiarFormulario();
     await cargarProveedores();
+    await cargarProveedoresProduc();
     document.getElementById('razon_social_factura').value = 'SOALPRO S.R.L.';
     autocompletarNit('SOALPRO S.R.L.');
     const hoy = new Date();
@@ -560,8 +562,8 @@ async function cargarDetallesPorProveedor(proveedor) {
                                 </div>
                             </label>
                         </td>
-                        <td class="px-2 py-3 text-gray-400">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
-                        <td class="px-2 py-3 text-gray-400">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
+                        <td class="px-2 py-3 text-gray-400 ult-precio-cell" data-original="${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
+                        <td class="px-2 py-3 text-gray-400 ult-compra-cell" data-original="${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
                         <td class="px-2 py-3">
                             <input type="number" step="0.01" class="cantidad-producto bg-gray-800 border border-gray-600 text-white text-xs rounded p-1 w-full text-center"
                                    value="${d.cantidad || 0}" onkeyup="calcularTotal(this)">
@@ -634,6 +636,7 @@ function recopilarDatos() {
         aprobador: document.getElementById('aprobador_orden').value,
         tc: tipoCambioActual,
         esImportacion: document.getElementById('es_importacion').checked,
+        proveedorDisplay: document.getElementById('proveedor_display').value || null,
         cabecera: {
             observacion: document.getElementById('observacion').value,
             formaPago: formaPago ? formaPago.value : ''
@@ -784,6 +787,7 @@ async function editarOrden(id) {
         document.getElementById('es_importacion').checked = data.orden.esImportacion || false;
         document.getElementById('tipo_orden_texto').textContent = data.orden.esImportacion ? 'Importación' : 'Nacional';
         document.getElementById('tel_prov').value = data.orden.telefono || '';
+        document.getElementById('proveedor_display').value = data.orden.proveedorDisplay || '';
         document.getElementById('contacto_nom').value = data.orden.nomContacto || '';
         document.getElementById('aprobador_orden').value = data.orden.aprobador || '';
         document.getElementById('corresponde_asc').value = data.orden.idAreaCorrespondencia || '';
@@ -860,8 +864,8 @@ async function editarOrden(id) {
                                 </div>
                             </label>
                         </td>
-                        <td class="px-2 py-3 text-gray-400">${p.ultimoPrecio > 0 ? parseFloat(p.ultimoPrecio).toFixed(2) : '-'}</td>
-                        <td class="px-2 py-3 text-gray-400">${p.fultimoPrecio ? new Date(p.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
+                        <td class="px-2 py-3 text-gray-400 ult-precio-cell" data-original="${p.ultimoPrecio > 0 ? parseFloat(p.ultimoPrecio).toFixed(2) : '-'}">${p.ultimoPrecio > 0 ? parseFloat(p.ultimoPrecio).toFixed(2) : '-'}</td>
+                        <td class="px-2 py-3 text-gray-400 ult-compra-cell" data-original="${p.fultimoPrecio ? new Date(p.fultimoPrecio).toLocaleDateString('es-ES') : '-'}">${p.fultimoPrecio ? new Date(p.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
                         <td class="px-2 py-3">
                             <input type="number" step="0.01" class="cantidad-producto bg-gray-800 border border-gray-600 text-white text-xs rounded p-1 w-full text-center"
                                    value="${p.cantidad || 0}" onkeyup="calcularTotal(this)">
@@ -904,8 +908,8 @@ async function editarOrden(id) {
                             </div>
                         </label>
                     </td>
-                    <td class="px-2 py-3 text-gray-400">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
-                    <td class="px-2 py-3 text-gray-400">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
+                    <td class="px-2 py-3 text-gray-400 ult-precio-cell" data-original="${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}">${d.ultimoPrecio > 0 ? parseFloat(d.ultimoPrecio).toFixed(2) : '-'}</td>
+                    <td class="px-2 py-3 text-gray-400 ult-compra-cell" data-original="${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}">${d.fultimoPrecio ? new Date(d.fultimoPrecio).toLocaleDateString('es-ES') : '-'}</td>
                     <td class="px-2 py-3">
                         <input type="number" step="0.01" class="cantidad-producto bg-gray-800 border border-gray-600 text-white text-xs rounded p-1 w-full text-center"
                                value="${d.cantidad || 0}" onkeyup="calcularTotal(this)">
@@ -924,12 +928,21 @@ async function editarOrden(id) {
         document.getElementById('body_detalle').innerHTML = html || `
             <tr>
                 <td colspan="12" class="text-center py-4 text-gray-400">No hay productos disponibles</td>
-            </tr>
+            </tr>cargarProveedoresProduc
         `;
 
      
 
         const modal = new Modal(document.getElementById('modalOrden'));
+
+        await cargarProveedoresProduc();
+        const selectizeInstance = document.getElementById('proveedor_display').selectize;
+        if (selectizeInstance) {
+            selectizeInstance.setValue(data.orden.proveedorDisplay || '');
+        }
+
+     
+
         modal.show();
 
     } catch (error) {
@@ -996,6 +1009,12 @@ function limpiarFormulario() {
     document.getElementById('nombre_cuenta').value = '';
     document.getElementById('codigo_swift').value = '';
     document.getElementById('incoterm').value = '';
+    const selectizeDisplay = document.getElementById('proveedor_display');
+    if (selectizeDisplay && selectizeDisplay.selectize) {
+        selectizeDisplay.selectize.clear();
+    } else if (selectizeDisplay) {
+        selectizeDisplay.value = '';
+    }
 
     document.getElementById('razon_social_factura').value = '';
     document.getElementById('nit_factura').value = '';
@@ -1634,4 +1653,78 @@ function cambiarTab(tab) {
         ? window._todasLasOrdenes?.filter(o => o.idEstado === 8) || []
         : window._todasLasOrdenes?.filter(o => o.idEstado === 9 || o.idEstado === 10) || [];
     gridApi.setGridOption('rowData', filteredData);
+}
+let proveedoresProducData = {};
+async function cargarProveedoresProduc() {
+    try {
+        const response = await fetch('/Orden/GetProveedoresProduc');
+        const data = await response.json();
+        const select = document.getElementById('proveedor_display');
+
+        proveedoresProducData = {}; // limpiar
+        while (select.options.length > 1) select.remove(1);
+
+        data.forEach(p => {
+            const option = document.createElement('option');
+            option.value = p.nom;
+            option.textContent = p.nom;
+            select.appendChild(option);
+            proveedoresProducData[p.nom] = p; // guardar datos en el objeto global
+        });
+
+        if ($(select).data('selectize')) {
+            $(select)[0].selectize.destroy();
+        }
+
+        select.value = ''; 
+
+        $(select).selectize({
+            placeholder: 'Dejar vacío para usar proveedor original',
+            allowEmptyOption: true,
+            create: false,
+            onChange: function (value) {
+                
+                
+                if (!value) {
+                    const proveedorOriginal = document.getElementById('select_proveedor').value;
+                    if (proveedorOriginal) {
+                        fetch(`/Orden/GetReferenciaPorProveedor?proveedor=${encodeURIComponent(proveedorOriginal)}`)
+                            .then(r => r.json())
+                            .then(data => {
+                                document.getElementById('tel_prov').value = data.telefono || '';
+                                document.getElementById('contacto_nom').value = data.contacto || '';
+                                document.getElementById('banco_nombre').value = data.banco || '';
+                                document.getElementById('cuenta_numero').value = data.cuenta || '';
+                                document.getElementById('nombre_cuenta').value = data.nombreCuenta || '';
+                            });
+                    } else {
+                        document.getElementById('tel_prov').value = '';
+                        document.getElementById('contacto_nom').value = '';
+                        document.getElementById('banco_nombre').value = '';
+                        document.getElementById('cuenta_numero').value = '';
+                        document.getElementById('nombre_cuenta').value = '';
+                    }
+                    return;
+                }
+                const info = proveedoresProducData[value];
+                if (!info) return;
+
+                document.getElementById('tel_prov').value = info.telefono || '';
+                document.getElementById('contacto_nom').value = info.contacto || '';
+                document.getElementById('banco_nombre').value = info.banco || '';
+                document.getElementById('cuenta_numero').value = info.cuenta || '';
+                document.getElementById('nombre_cuenta').value = info.nombreCuenta || '';
+            }
+        });
+
+    } catch (error) {
+        console.error('Error al cargar proveedores produc:', error);
+    }
+}
+
+function actualizarVisibilidadUltimoPrecio() {
+    const tieneProveedorDisplay = !!(document.getElementById('proveedor_display')?.value);
+    document.querySelectorAll('.ult-precio-cell, .ult-compra-cell').forEach(td => {
+        td.textContent = tieneProveedorDisplay ? '-' : td.dataset.valor ?? td.textContent;
+    });
 }

@@ -28,7 +28,7 @@
     }
 
     .grid-cols-13 {
-        grid-template-columns: repeat(13, minmax(0, 1fr));
+        grid-template-columns: repeat(14, minmax(0, 1fr));
     }
 </style>
 <div class="space-y-6">
@@ -83,44 +83,26 @@
             <form id="formularioSolicitud" class="p-4 md:p-5">
                 <input type="hidden" id="id" name="id">
 
-                <!-- CABECERA -->
-                <div class="mb-6 pb-4 border-b border-gray-600">
-                    <h4 class="text-md font-semibold text-blue-400 mb-4">
-                        <i class="fas fa-info-circle mr-2"></i>Información General
-                    </h4>
+            <!-- CABECERA -->
+            <div class="mb-6 pb-4 border-b border-gray-600">
+                <h4 class="text-md font-semibold text-blue-400 mb-4">
+                    <i class="fas fa-info-circle mr-2"></i>Información General
+                </h4>
 
-                    <div class="grid gap-4 mb-4 grid-cols-1 md:grid-cols-2">
-                        <!-- Fecha -->
+                <!-- Grid principal -->
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+
+                    <!-- Columna 1 -->
+                    <div class="grid grid-cols-1 gap-4">
                         <div>
                             <label for="fecha" class="block mb-2 text-sm font-medium text-white">
                                 <i class="fas fa-calendar mr-2 text-blue-400"></i>Fecha *
                             </label>
                             <input type="date" name="fecha" id="fecha"
-                                   class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 transition-colors"
+                                   class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
                                    readonly required>
                         </div>
 
-                        <!-- Fecha Requerimiento -->
-                        <div>
-                            <label for="frequerimiento" class="block mb-2 text-sm font-medium text-white">
-                                <i class="fas fa-calendar-check mr-2 text-blue-400"></i>Fecha Requerimiento
-                            </label>
-                            <input type="date" name="frequerimiento" id="frequerimiento"
-                                   class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 transition-colors"
-                                   required>
-                        </div>
-
-                        <!-- Referencia -->
-                        <div>
-                            <label for="referencia" class="block mb-2 text-sm font-medium text-white">
-                                <i class="fas fa-hashtag mr-2 text-blue-400"></i>Referencia
-                            </label>
-                            <input type="text" name="referencia" id="referencia" 
-                                   class="uppercase bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5 placeholder-gray-400 transition-colors"
-                                   placeholder="Ingrese referencia">
-                        </div>
-
-                        <!-- Solicitante -->
                         <div>
                             <label for="solicitante" class="block mb-2 text-sm font-medium text-white">
                                 <i class="fas fa-user mr-2 text-blue-400"></i>Solicitante *
@@ -130,7 +112,99 @@
                                    value="@User.Identity.Name" readonly required>
                         </div>
                     </div>
+
+                    <!-- Columna 2 -->
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label for="frequerimiento" class="block mb-2 text-sm font-medium text-white">
+                                <i class="fas fa-calendar-check mr-2 text-blue-400"></i>Fecha Requerimiento
+                            </label>
+                            <input type="date" name="frequerimiento" id="frequerimiento"
+                                   class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                                   required>
+                        </div>
+
+                        <div>
+                            <label for="referencia" class="block mb-2 text-sm font-medium text-white">
+                                <i class="fas fa-hashtag mr-2 text-blue-400"></i>Referencia
+                            </label>
+                            <input type="text" name="referencia" id="referencia"
+                                   class="uppercase bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                                   placeholder="Ingrese referencia">
+                        </div>
+                    </div>
+
+                    <!-- Columna 3 (ocupa 2 columnas) -->
+                    <div class="lg:col-span-2 flex flex-col gap-3">
+                        <h4 class="text-sm font-semibold text-blue-400">
+                            <i class="fas fa-paperclip mr-2"></i>Archivos Adjuntos
+                            <span class="text-gray-400 text-xs font-normal ml-1">
+                                (Máx. 1MB por archivo)
+                            </span>
+                        </h4>
+
+                        <!-- Dropzone -->
+                        <div class="flex items-center justify-center w-full">
+                            <label for="archivos_solicitud"
+                                   class="flex flex-col items-center justify-center w-full h-36 bg-gray-700 border border-dashed border-gray-500 rounded-lg cursor-pointer hover:bg-gray-600 transition-colors"
+                                   id="dropzoneLabel">
+
+                                <div class="flex flex-col items-center justify-center pt-4 pb-4 text-gray-400">
+                                    <svg class="w-8 h-8 mb-2" aria-hidden="true"
+                                         xmlns="http://www.w3.org/2000/svg"
+                                         fill="none" viewBox="0 0 24 24">
+                                        <path stroke="currentColor"
+                                              stroke-linecap="round"
+                                              stroke-linejoin="round"
+                                              stroke-width="2"
+                                              d="M15 17h3a3 3 0 0 0 0-6h-.025a5.56 5.56 0 0 0 .025-.5A5.5 5.5 0 0 0 7.207 9.021C7.137 9.017 7.071 9 7 9a4 4 0 1 0 0 8h2.167M12 19v-9m0 0-2 2m2-2 2 2"/>
+                                    </svg>
+
+                                    <p class="mb-1 text-sm">
+                                        <span class="font-semibold text-blue-400">
+                                            Click para subir
+                                        </span>
+                                        o arrastra aquí
+                                    </p>
+
+                                    <p class="text-xs">
+                                        PDF, Excel, Word, Imágenes
+                                    </p>
+                                </div>
+
+                                <input id="archivos_solicitud"
+                                       type="file"
+                                       class="hidden"
+                                       multiple
+                                       accept=".jpg,.jpeg,.png,.gif,.bmp,.webp,.pdf,.xls,.xlsx,.doc,.docx">
+                            </label>
+                        </div>
+
+                        <!-- Archivos pendientes -->
+                        <div id="archivos_pendientes"
+                             class="hidden flex items-center justify-between gap-2 bg-gray-700 border border-gray-600 rounded-lg px-3 py-2">
+
+                            <span id="archivos_pendientes_texto"
+                                  class="text-xs text-gray-300"></span>
+
+                            <button type="button"
+                                    onclick="subirArchivosSolicitud()"
+                                    class="px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shrink-0">
+                                <i class="fas fa-cloud-upload-alt mr-1"></i>Subir
+                            </button>
+                        </div>
+
+                        <!-- Lista archivos -->
+                        <div id="lista_archivos_solicitud"
+                             class="space-y-1 text-sm max-h-32 overflow-y-auto">
+                            <span class="text-gray-500 text-xs">
+                                Sin archivos adjuntos
+                            </span>
+                        </div>
+                    </div>
+
                 </div>
+            </div>
 
                 <!-- DETALLE DE PRODUCTOS -->
                 <div class="mb-6">
@@ -174,6 +248,9 @@
                                     <span class="text-[10px] font-semibold text-gray-300">Req. Días *</span>
                                 </div>
                                 <div class="col-span-1">
+                                    <span class="text-[10px] font-semibold text-gray-300">Empresa</span>
+                                </div>
+                                <div class="col-span-1">
                                     <span class="text-[10px] font-semibold text-gray-300">Ult. Precio</span>
                                 </div>
                                 <div class="col-span-1">
@@ -193,6 +270,7 @@
                         <div id="productosLista" class="space-y-2 max-h-80 overflow-y-auto pr-2"></div>
                     </div>
                 </div>
+                
 
                 <!-- Botones del modal -->
                 <div class="flex justify-end gap-3 pt-4 border-t border-gray-600">

@@ -137,6 +137,7 @@ namespace orion.Controllers
                             ds => ds.Id.ToString(),
                             (sp, ds) => ds.Proveedor)
                         .FirstOrDefault() ?? "",
+                    ProveedorDisplay = o.ProveedorDisplay,
                     TipoCambio = o.TipoCambio,
                     Observacion = o.Observacion,
                     FormaPago = o.FormaPago,

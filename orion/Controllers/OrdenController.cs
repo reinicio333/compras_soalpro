@@ -190,7 +190,8 @@ namespace orion.Controllers
                     Aprobador = aprobadorId,
                     EsImportacion = datos.EsImportacion,
                     IdAreaCorrespondencia = datos.IdAreaCorrespondencia,
-                    CorrespondeAsc = datos.CorrespondeAsc
+                    CorrespondeAsc = datos.CorrespondeAsc,
+                    ProveedorDisplay = datos.ProveedorDisplay
                 };
 
                 _context.OrdenCompra.Add(orden);
@@ -515,6 +516,7 @@ namespace orion.Controllers
                         orden.EsImportacion,
                         orden.IdEstadoSolicitud,
                         orden.Telefono,
+                        orden.ProveedorDisplay,
                         orden.NomContacto,
                         orden.Aprobador,
                         orden.IdAreaCorrespondencia,
@@ -588,6 +590,7 @@ namespace orion.Controllers
                 orden.IdAreaCorrespondencia = datos.IdAreaCorrespondencia;
                 orden.CorrespondeAsc = datos.CorrespondeAsc;
                 orden.Telefono = datos.Telefono;
+                orden.ProveedorDisplay = datos.ProveedorDisplay;
                 orden.NomContacto = !string.IsNullOrWhiteSpace(datos.Contacto)
                     ? datos.Contacto
                     : datos.NomContacto;
@@ -1375,7 +1378,8 @@ namespace orion.Controllers
             {
                 IdSolicitud = 0,
                 Fecha = orden.Fecha?.ToString("dd/MM/yyyy") ?? DateTime.Now.ToString("dd/MM/yyyy"),
-                Proveedor = proveedor,
+                Proveedor = !string.IsNullOrWhiteSpace(orden.ProveedorDisplay) ? orden.ProveedorDisplay : proveedor,
+                ProveedorDisplay = !string.IsNullOrWhiteSpace(orden.ProveedorDisplay) ? proveedor : null,
                 Telefono = orden.Telefono ?? "",
                 Contacto = orden.NomContacto ?? "",
                 NomContacto = orden.NomContacto ?? "",
@@ -1628,6 +1632,25 @@ namespace orion.Controllers
                 return Json(new { error = true, message = "Error: " + ex.Message });
             }
         }
+        [HttpGet]
+        public async Task<IActionResult> GetProveedoresProduc()
+        {
+            var proveedores = await _context.ProveedoresCompras
+                .Where(p => !string.IsNullOrEmpty(p.NomProveedor))
+                .Select(p => new {
+                    nom = p.NomProveedor,
+                    telefono = p.Telefono,
+                    contacto = p.Contacto,
+                    banco = p.Banco,
+                    cuenta = p.Cuenta,
+                    nombreCuenta = p.NomCuenta
+                })
+                .Distinct()
+                .OrderBy(p => p.nom)
+                .ToListAsync();
+
+            return Json(proveedores);
+        }
 
         private async Task<string?> ObtenerAprobadorId(string? valorAprobador)
         {
@@ -1754,6 +1777,7 @@ namespace orion.Controllers
                     o.CorrespondeAsc,
                     o.RutasArchivos,
                     o.RecepcionTipo,
+                    o.ProveedorDisplay,
                     o.ObservacionRecepcion,
                     FechaEstado = _context.HistorialEstadoOrden
                         .Where(h => h.IdOrden == o.Id)
@@ -1809,6 +1833,7 @@ namespace orion.Controllers
                     Nit = o.Nit,
                     Telefono = o.Telefono,
                     NomContacto = o.NomContacto,
+                    ProveedorDisplay = o.ProveedorDisplay,
                     Aprobador = o.Aprobador,
                     IdAreaCorrespondencia = o.IdAreaCorrespondencia,
                     CorrespondeAsc = o.CorrespondeAsc,
@@ -1920,6 +1945,7 @@ namespace orion.Controllers
         public string RevisadoPor { get; set; }
         public string RevisadoPorFirmaPath { get; set; }
         public string Aprobador { get; set; }
+        public string? ProveedorDisplay { get; set; }
         public int IdAreaCorrespondencia { get; set; }
         public string CorrespondeAsc { get; set; }
         public CabeceraDto Cabecera { get; set; }
@@ -2036,6 +2062,7 @@ namespace orion.Controllers
         public string? SolicitudesVinculadas { get; set; }
         public string? ReferenciasSolicitudesVinculadas { get; set; }
         public string? SolicitantesSolicitudesVinculadas { get; set; }
+        public string? ProveedorDisplay { get; set; }
     }
 
     public class ReporteGeneralOrdenDetalleDto : ReporteGeneralOrdenDto
@@ -2046,9 +2073,22 @@ namespace orion.Controllers
         public string? CodigoItem { get; set; }
         public decimal? CantidadItem { get; set; }
         public decimal? PrecioItem { get; set; }
+        public string? ProveedorDisplay { get; set; }
         public DateTime? Frequerimiento { get; set; }
         public Dictionary<int, DateTime>? HistorialEstados { get; set; }
     }
+    public class ArchivoSolicitudItemDto
+    {
+        public string Nombre { get; set; }
+        public string Archivo { get; set; }
+        public decimal TamanoKb { get; set; }
+        public string Fecha { get; set; }
+    }
 
+    public class EliminarArchivoSolicitudDto
+    {
+        public int IdSolicitud { get; set; }
+        public string Archivo { get; set; }
+    }
     #endregion
 }

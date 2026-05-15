@@ -11,6 +11,7 @@ namespace orion.Models
         public DateTime? Frequerimiento { get; set; }
         public string? Referencia { get; set; }
         public string? Solicitante { get; set; }
+        public string? RutasArchivos { get; set; }
 
     }
 }
